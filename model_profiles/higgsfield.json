@@ -1,0 +1,9 @@
+{
+  "id": "higgsfield",
+  "provider": "higgsfield",
+  "model": "provider-selected",
+  "supportsStartFrame": true,
+  "supportsEndFrame": true,
+  "tagTemplate": "Reference {position}",
+  "note": "Numeric limits are configured per selected Higgsfield model."
+}

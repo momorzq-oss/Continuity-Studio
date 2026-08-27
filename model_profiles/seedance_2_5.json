@@ -1,0 +1,12 @@
+{
+  "id": "seedance-2.5",
+  "provider": "seedance",
+  "model": "seedance-2.5",
+  "maxDurationSeconds": 30,
+  "maxImageReferences": 30,
+  "maxVideoReferences": 10,
+  "maxAudioReferences": 10,
+  "supportsStartFrame": true,
+  "supportsEndFrame": true,
+  "tagTemplate": "@Image {position}"
+}

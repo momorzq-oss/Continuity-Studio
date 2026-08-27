@@ -1,0 +1,9 @@
+{
+  "profile": "Character Rules",
+  "rules": [
+    {"id":"CHAR_PERMANENT_ID","name":"Characters require permanent IDs","category":"character","scopes":["character","asset","sequence","frame","generation_prompt"],"severity":"BLOCKING","enforcement":"Recurring characters are referenced by stable CHAR_* IDs and never only by prose descriptions.","source":"film_rules/ASSET_RULES.md"},
+    {"id":"CHAR_REFERENCE_LOCK","name":"Character references control identity","category":"character","scopes":["character","frame","image_prompt","video_prompt"],"severity":"BLOCKING","enforcement":"Approved character references control face and body; wardrobe references control clothing unless an approved reference explicitly has both roles.","source":"film_rules/ASSET_RULES.md"},
+    {"id":"CHAR_SHEET_COVERAGE","name":"Character sheets cover identity views","category":"image_generation","scopes":["character","image_prompt"],"severity":"WARNING","enforcement":"Use front, three-quarter, profile, back, full-body, close-up, neutral, and production wardrobe views when they strengthen identity.","source":"film_rules/ASSET_RULES.md"},
+    {"id":"WARDROBE_STATE_VERSION","name":"Wardrobe changes create state versions","category":"wardrobe","scopes":["character","asset","sequence","frame"],"severity":"ERROR","enforcement":"Intentional wardrobe or damage changes create new states; never overwrite approved history.","source":"film_rules/ASSET_RULES.md"}
+  ]
+}

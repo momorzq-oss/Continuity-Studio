@@ -1,0 +1,23 @@
+name: Feature request
+description: Propose a focused improvement to the filmmaking workflow.
+title: "[Feature]: "
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Production problem
+      description: What filmmaking or continuity problem should this solve?
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed workflow
+    validations:
+      required: true
+  - type: textarea
+    id: boundaries
+    attributes:
+      label: Provider or platform boundaries
+      description: Note any API, model, reference, cost, privacy, or licensing assumptions.

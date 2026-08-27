@@ -1,0 +1,9 @@
+{
+  "id": "generic",
+  "provider": "generic",
+  "model": "generic",
+  "supportsStartFrame": true,
+  "supportsEndFrame": true,
+  "tagTemplate": "REF_{position}",
+  "note": "No provider limits assumed."
+}

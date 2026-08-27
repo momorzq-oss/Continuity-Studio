@@ -1,0 +1,115 @@
+{
+  "name": "continuity-studio",
+  "version": "1.0.0",
+  "description": "Continuity Studio By BURABEEH — a desktop AI filmmaking and continuity production workspace.",
+  "author": {
+    "name": "Mohammed Al Marzooqi (Burabeeh)"
+  },
+  "license": "Apache-2.0",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/momorzq-oss/Continuity-Studio.git"
+  },
+  "homepage": "https://github.com/momorzq-oss/Continuity-Studio#readme",
+  "bugs": {
+    "url": "https://github.com/momorzq-oss/Continuity-Studio/issues"
+  },
+  "keywords": ["ai-filmmaking", "ai-video", "storyboard", "continuity", "generative-ai", "film-production"],
+  "type": "module",
+  "main": "desktop-dist/main.mjs",
+  "scripts": {
+    "dev": "tsx watch server/index.ts",
+    "build": "vite build",
+    "start": "tsx server/index.ts --prod",
+    "desktop:compile": "esbuild desktop/main.ts desktop/preload.ts --bundle --platform=node --format=esm --packages=external --external:electron --out-extension:.js=.mjs --outdir=desktop-dist",
+    "desktop:dev": "npm run desktop:compile && cross-env CONTINUITY_DESKTOP_DEV=1 electron .",
+    "desktop:build": "npm run build && npm run desktop:compile",
+    "desktop:package": "npm run desktop:build && electron-builder --win --x64",
+    "icon:build": "node scripts/build-icon.mjs",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "docs:check": "node scripts/check-doc-links.mjs",
+    "demo:create": "tsx scripts/create-film-brain-demo.ts",
+    "setup": "node scripts/install-cli.mjs"
+  },
+  "dependencies": {
+    "@openai/codex": "0.144.4",
+    "archiver": "8.0.0",
+    "express": "5.2.1",
+    "lucide-react": "1.34.0",
+    "openai": "7.5.0",
+    "react": "19.2.8",
+    "react-dom": "19.2.8",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/archiver": "8.0.0",
+    "@types/express": "5.0.6",
+    "@types/node": "26.3.0",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.5",
+    "@vitejs/plugin-react": "6.1.0",
+    "cross-env": "10.1.0",
+    "electron": "44.0.0",
+    "electron-builder": "26.15.3",
+    "esbuild": "0.28.2",
+    "png-to-ico": "3.0.2",
+    "tsx": "4.23.12",
+    "typescript": "7.0.2",
+    "vite": "8.2.2",
+    "vitest": "4.1.11"
+  },
+  "build": {
+    "appId": "studio.continuity.desktop",
+    "productName": "Continuity Studio By BURABEEH",
+    "copyright": "Copyright © 2026 Mohammed Al Marzooqi",
+    "asar": true,
+    "asarUnpack": [
+      "node_modules/@openai/codex/**",
+      "node_modules/@openai/codex-win32-x64/**"
+    ],
+    "directories": {
+      "output": "release/windows-v1.0.0",
+      "buildResources": "assets"
+    },
+    "files": [
+      "dist/**",
+      "desktop-dist/**",
+      "desktop/loading.html",
+      "assets/icon.png",
+      "assets/icon.ico",
+      "rules/**",
+      "model_profiles/**",
+      "references/original-rule-pack/**",
+      "package.json"
+    ],
+    "win": {
+      "icon": "assets/icon.ico",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ]
+    },
+    "nsis": {
+      "artifactName": "Continuity-Studio-By-BURABEEH-${version}-${arch}-nsis.${ext}",
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Continuity Studio By BURABEEH",
+      "installerIcon": "assets/icon.ico",
+      "uninstallerIcon": "assets/icon.ico"
+    },
+    "portable": {
+      "artifactName": "Continuity-Studio-By-BURABEEH-${version}-${arch}-portable.${ext}"
+    }
+  }
+}

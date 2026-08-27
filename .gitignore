@@ -1,0 +1,53 @@
+# Dependencies and package-manager credentials
+node_modules/
+.npmrc
+.yarnrc*
+
+# Environment and provider credentials
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+credentials*.json
+
+# Build and release output
+dist/
+desktop-dist/
+release/
+coverage/
+
+# Local projects, databases, logs, and generated private media
+data/
+*.sqlite
+*.sqlite3
+*.db
+*.log
+logs/
+**/references/uploads/
+**/generated_images/
+**/generated_video/
+**/audio/generated/
+**/final/private/
+
+# Python and general caches
+.venv/
+venv/
+env/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.cache/
+.superdesign/
+
+# Temporary and editor files
+tmp/
+temp/
+*.tmp
+*.swp
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/

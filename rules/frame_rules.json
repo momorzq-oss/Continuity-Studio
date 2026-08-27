@@ -1,0 +1,11 @@
+{
+  "profile": "Sequence Rules",
+  "rules": [
+    {"id":"FRAME_THREE_ANCHORS","name":"Every sequence has START MID END anchors","category":"frame","scopes":["sequence","frame"],"severity":"BLOCKING","enforcement":"Each sequence stores distinct START, MID, and END frame plans even when still images are not generated.","source":"film_rules/FRAME_RULES.md"},
+    {"id":"FRAME_COMPLETE_STATE","name":"Frames store complete physical state","category":"frame","scopes":["frame"],"severity":"ERROR","enforcement":"Store visible characters and assets, positions, action, camera, lens, composition, environment, lighting, continuity, references, and prompt.","source":"film_rules/FRAME_RULES.md"},
+    {"id":"FRAME_START_RECONCILES","name":"START reconciles with approved continuity","category":"continuity","scopes":["frame"],"severity":"BLOCKING","enforcement":"START state matches the prior approved END unless a direct, match, time-jump, location, or new-angle transition is explicitly recorded.","source":"film_rules/FRAME_RULES.md"},
+    {"id":"FRAME_MID_RESPECTS_LOCKS","name":"MID changes state without breaking locks","category":"frame","scopes":["frame"],"severity":"BLOCKING","enforcement":"Movement, information, threat, object transfer, damage, position, and emotion may change, but locked assets may not.","source":"film_rules/FRAME_RULES.md"},
+    {"id":"FRAME_END_HANDOFF","name":"END is an exact continuity handoff","category":"continuity","scopes":["frame","sequence"],"severity":"BLOCKING","enforcement":"END records exact outgoing positions, direction, wardrobe, injuries, props, entities, location, camera, lighting, weather, facts, motion, and emotion.","source":"film_rules/FRAME_RULES.md"},
+    {"id":"FRAME_PROMPT_SECTIONS","name":"Frame prompts separate control layers","category":"template","scopes":["image_prompt"],"severity":"ERROR","enforcement":"Separate locked references, physical state, composition, camera/lens, light/colour, frozen action, and negative continuity constraints.","source":"film_rules/FRAME_RULES.md"}
+  ]
+}

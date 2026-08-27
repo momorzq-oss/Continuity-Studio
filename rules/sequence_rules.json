@@ -1,0 +1,12 @@
+{
+  "profile": "Sequence Rules",
+  "rules": [
+    {"id":"SEQ_COMPLETE_RECORD","name":"Store complete sequence records","category":"sequence","scopes":["sequence"],"severity":"BLOCKING","enforcement":"Store ID, number, duration, purpose, continuity source, references, beginning/middle/ending, START/MID/END states, camera, lighting, sound, dialogue, negative rules, attempts, review, output, and approved END state.","source":"film_rules/SEQUENCE_RULES.md"},
+    {"id":"SEQ_DURATION_CONFIGURED","name":"Sequence duration is a project setting","category":"sequence","scopes":["project","sequence","generation_prompt"],"severity":"INFO","enforcement":"Thirty seconds is a supported default, not a hidden or exclusive duration.","source":"film_rules/SEQUENCE_RULES.md"},
+    {"id":"SEQ_THREE_PART_PROGRESSION","name":"Sequences progress beginning to middle to ending","category":"story","scopes":["sequence","frame"],"severity":"ERROR","enforcement":"Beginning establishes inherited state, middle advances action or information, and ending lands on a deliberate continuity handoff.","source":"film_rules/SEQUENCE_RULES.md"},
+    {"id":"SEQ_EXPLICIT_COUNTS","name":"Prompt exact entity counts","category":"sequence","scopes":["sequence","generation_prompt"],"severity":"BLOCKING","enforcement":"Character, creature, animal, and relevant background counts are explicit when duplication risk exists.","source":"film_rules/SEQUENCE_RULES.md"},
+    {"id":"SEQ_PHYSICAL_LOGIC","name":"Actions obey physical logic","category":"sequence","scopes":["sequence","shot","frame","generation_result"],"severity":"ERROR","enforcement":"Respect distance, direction, possession, environment, ability, damage, injury, and animal or vehicle movement; no unexplained teleportation.","source":"film_rules/SEQUENCE_RULES.md"},
+    {"id":"SEQ_SMALLEST_REPAIR","name":"Regenerate the smallest failed scope","category":"validation","scopes":["generation_result"],"severity":"WARNING","enforcement":"Classify failures and repair the smallest appropriate shot, region, transition, frame, reference, prompt, or sequence scope.","source":"film_rules/SEQUENCE_RULES.md"},
+    {"id":"SEQ_DOWNSTREAM_INVALIDATION","name":"Invalidate downstream artifacts","category":"validation","scopes":["film_bible","asset","sequence","frame","generation_prompt"],"severity":"BLOCKING","enforcement":"When an approved upstream state changes, mark dependent prompts, frames, results, and continuity states stale.","source":"film_rules/SEQUENCE_RULES.md"}
+  ]
+}

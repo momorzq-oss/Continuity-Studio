@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Starting Continuity Studio By BURABEEH</title>
+    <style>
+      :root { color-scheme: dark; font-family: Inter, "Segoe UI", sans-serif; background: #090a0b; color: #f2efe9; }
+      * { box-sizing: border-box; }
+      body { margin: 0; min-height: 100vh; display: grid; place-items: center; background: radial-gradient(circle at center, #1c1710 0, #090a0b 43%); }
+      main { display: grid; justify-items: center; gap: 18px; }
+      .mark { width: 76px; height: 76px; display: grid; place-items: center; border: 1px solid #e7a93a; border-radius: 22px; color: #e7a93a; font-size: 25px; font-weight: 650; letter-spacing: .04em; transform: rotate(45deg); }
+      .mark span { transform: rotate(-45deg); }
+      h1 { margin: 4px 0 0; font-size: 23px; letter-spacing: -.02em; }
+      .byline { color: #e7a93a; font-size: 10px; font-weight: 700; letter-spacing: .2em; }
+      p { margin: 0; color: #8d8d88; font-size: 12px; }
+      .line { width: 190px; height: 2px; overflow: hidden; background: #222427; }
+      .line::after { content: ""; display: block; width: 45%; height: 100%; background: #e7a93a; animation: load 1.2s ease-in-out infinite; }
+      @keyframes load { from { transform: translateX(-110%); } to { transform: translateX(330%); } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <div class="mark"><span>CS</span></div>
+      <h1>Continuity Studio</h1>
+      <div class="byline">BY BURABEEH</div>
+      <p id="startup-status">Preparing your filmmaking workspace…</p>
+      <div class="line"></div>
+    </main>
+  </body>
+</html>

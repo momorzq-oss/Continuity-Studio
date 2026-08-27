@@ -1,0 +1,11 @@
+{
+  "profile": "Model Rules",
+  "rules": [
+    {"id":"MODEL_SEEDANCE_STRUCTURE","name":"Compile Seedance production structure","category":"model_specific","scopes":["video_prompt"],"severity":"ERROR","enforcement":"Order prompt as header, continuity, reference roles, hard locks, START, timed action, camera, environment/light, dialogue/sound, END, and negative rules.","source":"model_rules/SEEDANCE_2_5.md"},
+    {"id":"MODEL_SEEDANCE_FLEXIBLE_DURATION","name":"Seedance timing follows duration","category":"model_specific","scopes":["video_prompt"],"severity":"ERROR","enforcement":"Support 30-second thirds when applicable without hardcoding 30 seconds as the only duration or forcing cuts.","source":"model_rules/SEEDANCE_2_5.md"},
+    {"id":"MODEL_MINIMAX_AUTHORITY","name":"MiniMax cannot override project law","category":"model_specific","scopes":["generation_prompt"],"severity":"BLOCKING","enforcement":"MiniMax receives only relevant structured context and may not redesign approved assets or invent permanent IDs.","source":"model_rules/MINIMAX_H3.md"},
+    {"id":"MODEL_MINIMAX_STRUCTURED_OUTPUT","name":"MiniMax returns schema-matching output","category":"template","scopes":["generation_prompt"],"severity":"ERROR","enforcement":"Require role, project law, continuity, references, sequence, START/MIDDLE/END, camera, audio, restrictions, and an explicit output contract.","source":"templates/MINIMAX_H3_TEMPLATE.md"},
+    {"id":"MODEL_PROPOSE_NEW_ASSETS","name":"New model assets remain proposed","category":"asset","scopes":["story","asset","generation_prompt"],"severity":"BLOCKING","enforcement":"New recurring assets created during expansion are PROPOSED/DRAFT and require explicit approval before use.","source":"model_rules/MINIMAX_H3.md"},
+    {"id":"MODEL_CONNECTION_SEPARATION","name":"Connection settings stay outside film rules","category":"model_specific","scopes":["project","generation_prompt"],"severity":"ERROR","enforcement":"Endpoint, model, authentication, timeout, context, and generation settings belong to provider adapters and may not alter film law.","source":"model_rules/MINIMAX_H3.md"}
+  ]
+}

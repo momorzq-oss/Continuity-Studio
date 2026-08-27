@@ -1,0 +1,12 @@
+{
+  "profile": "Project Rules",
+  "rules": [
+    {"id":"ASSET_REGISTER_BEFORE_USE","name":"Register recurring assets before generation","category":"asset","scopes":["asset","sequence","generation_prompt"],"severity":"BLOCKING","enforcement":"Every recurring or visually important character, wardrobe, creature, animal, vehicle, location, interior, prop, weapon, tool, effect, damage state, and period reference requires a manifest entry.","source":"film_rules/BURABEEH_FILM_ENGINE.md"},
+    {"id":"ASSET_STABLE_ID","name":"Asset IDs never renumber","category":"asset","scopes":["asset","sequence","frame","generation_prompt"],"severity":"BLOCKING","enforcement":"Approved permanent IDs remain stable when assets are inserted, reordered, or versioned.","source":"film_rules/ASSET_RULES.md"},
+    {"id":"ASSET_COMPLETE_RECORD","name":"Store complete asset records","category":"asset","scopes":["asset"],"severity":"ERROR","enforcement":"Store ID, name, category, description, references, approval, version, locked and mutable traits, state, first and last sequence, notes, and relationships.","source":"film_rules/ASSET_RULES.md"},
+    {"id":"ASSET_REFERENCE_ROLES","name":"Reference roles are explicit","category":"asset","scopes":["sequence","frame","generation_prompt"],"severity":"BLOCKING","enforcement":"Every active reference identifies asset ID, file, control role, priority, and state version; unrelated responsibilities cannot be blended.","source":"film_rules/ASSET_RULES.md"},
+    {"id":"ASSET_MINIMUM_REFERENCES","name":"Use minimum sufficient references","category":"image_generation","scopes":["image_prompt","video_prompt"],"severity":"WARNING","enforcement":"Use only relevant approved references to avoid ambiguity and accidental blending.","source":"film_rules/ASSET_RULES.md"},
+    {"id":"ASSET_LOCKED_REUSE","name":"Reuse approved locked assets","category":"asset","scopes":["asset","sequence","frame","generation_prompt"],"severity":"BLOCKING","enforcement":"Do not generate or replace an approved LOCKED asset unless the user explicitly creates a new version.","source":"film_rules/ASSET_RULES.md"},
+    {"id":"ASSET_RELATIONSHIP_GRAPH","name":"Persist asset relationships","category":"asset","scopes":["asset","sequence"],"severity":"ERROR","enforcement":"Link wears, rides, uses, carries, appears-in, owns, and state-version relationships by permanent IDs.","source":"film_rules/BURABEEH_FILM_ENGINE.md"}
+  ]
+}

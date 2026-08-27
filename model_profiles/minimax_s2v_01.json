@@ -1,0 +1,9 @@
+{
+  "id": "minimax-s2v-01",
+  "provider": "minimax",
+  "model": "S2V-01",
+  "maxImageReferences": 1,
+  "supportsStartFrame": false,
+  "supportsEndFrame": false,
+  "tagTemplate": "Reference image {position}"
+}

@@ -1,0 +1,11 @@
+{
+  "profile": "Global Rules",
+  "rules": [
+    {"id":"GLOBAL_LOCK_BEFORE_GENERATION","name":"Lock the film before generation","category":"project","scopes":["project","film_bible","generation_prompt"],"severity":"BLOCKING","enforcement":"Require an approved Film Bible, registered reusable assets, and defined sequence end state before final prompt compilation.","source":"film_rules/BURABEEH_FILM_ENGINE.md"},
+    {"id":"GLOBAL_AUTHORITY_ORDER","name":"Approved state has highest authority","category":"project","scopes":["project","asset","sequence","shot","frame","generation_prompt"],"severity":"BLOCKING","enforcement":"Approved project state and locked production data override model adapters and provider output.","source":"AGENTS.md"},
+    {"id":"GLOBAL_STRUCTURED_PROMPTS","name":"Compile from structured state","category":"generation","scopes":["image_prompt","video_prompt","generation_prompt"],"severity":"ERROR","enforcement":"Never send raw story prose directly to a generator; inherit project, asset, sequence, frame, and continuity state.","source":"AGENTS.md"},
+    {"id":"GLOBAL_PROVIDER_INDEPENDENCE","name":"Keep film law provider independent","category":"model_specific","scopes":["project","generation_prompt"],"severity":"ERROR","enforcement":"Brain providers decide who reasons; the Film Engine remains the source of production policy.","source":"AGENTS.md"},
+    {"id":"GLOBAL_NO_SILENT_REDESIGN","name":"No silent redesign","category":"asset","scopes":["character","asset","sequence","frame","generation_prompt"],"severity":"BLOCKING","enforcement":"A provider may not silently change identity, wardrobe, anatomy, important props, damage, geography, time, lighting, or camera language.","source":"AGENTS.md"},
+    {"id":"GLOBAL_APPROVAL_STATES","name":"Use explicit approval lifecycle","category":"validation","scopes":["asset","sequence","frame","generation_result"],"severity":"ERROR","enforcement":"Production records use DRAFT, GENERATED, REVIEW, APPROVED, LOCKED, REJECTED, or REGENERATE states.","source":"film_rules/BURABEEH_FILM_ENGINE.md"}
+  ]
+}

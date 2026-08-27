@@ -1,0 +1,10 @@
+{
+  "profile": "Global Rules",
+  "rules": [
+    {"id":"GEN_REQUIRED_INPUTS","name":"Require production inputs before compilation","category":"video_generation","scopes":["video_prompt","generation_prompt"],"severity":"BLOCKING","enforcement":"Require approved Film Bible, active approved assets, reference manifest, START/MID/END, camera, lighting, dialogue when needed, sound, and negative rules.","source":"model_rules/SEEDANCE_2_5.md"},
+    {"id":"GEN_REFERENCE_TRUTH","name":"References control visual truth","category":"image_generation","scopes":["image_prompt","video_prompt"],"severity":"BLOCKING","enforcement":"Text controls events, timing, performance, camera, and movement; approved references control locked visual identity.","source":"model_rules/SEEDANCE_2_5.md"},
+    {"id":"GEN_TARGETED_NEGATIVES","name":"Use targeted continuity negatives","category":"generation","scopes":["image_prompt","video_prompt"],"severity":"ERROR","enforcement":"Include relevant protections for duplicate identities, drift, wardrobe, morphing, extra people, blended architecture, missing props, wound reset, teleportation, camera reversal, and time or light jumps.","source":"model_rules/SEEDANCE_2_5.md"},
+    {"id":"GEN_INSPECT_BEFORE_APPROVAL","name":"Inspect every generation","category":"validation","scopes":["generation_result"],"severity":"BLOCKING","enforcement":"Compare output with reference manifest and START/MID/END states; reject visually impressive results that violate locks.","source":"film_rules/BURABEEH_FILM_ENGINE.md"},
+    {"id":"GEN_CLEAN_MASTER_PRIORITY","name":"Clean masters outrank generated frames","category":"continuity","scopes":["generation_prompt","generation_result"],"severity":"BLOCKING","enforcement":"A flawed last frame or video may never overwrite a clean locked identity or asset reference.","source":"film_rules/BURABEEH_FILM_ENGINE.md"}
+  ]
+}
