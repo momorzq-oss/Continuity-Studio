@@ -14,7 +14,7 @@ export interface CodexCommand {
 export type CodexSpawn = typeof spawn;
 
 export const toUnpackedAsarPath = (value: string) =>
-  value.replace(`${path.sep}app.asar${path.sep}`, `${path.sep}app.asar.unpacked${path.sep}`);
+  value.replace(/([\\/])app\.asar([\\/])/g, "$1app.asar.unpacked$2");
 
 export const resolveCodexCommand = (): CodexCommand => {
   const configured = process.env.CODEX_EXECUTABLE?.trim();
