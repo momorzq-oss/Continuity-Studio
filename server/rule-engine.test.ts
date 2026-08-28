@@ -82,7 +82,8 @@ describe("FilmRuleEngine", () => {
   it("flags a wrong or missing held prop", () => {
     const value = project();
     const engine = new FilmRuleEngine();
-    const end = value.memory.database.continuityStates.find((state) => Object.values(state.propsHeld).flat().length > 0 && state.anchor === "END")!;
+    const end = value.memory.database.continuityStates.find((state) => state.characters.length > 0 && state.anchor === "END")!;
+    end.propsHeld[end.characters[0]!] = ["PROP_EXPECTED_001"];
     const issues = engine.validateObserved(value, end.sequenceId, { props: [] });
     expect(issues.some((item) => item.title === "Wrong or missing prop")).toBe(true);
   });

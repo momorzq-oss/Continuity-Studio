@@ -16,10 +16,11 @@ import type {
 } from "../src/types.js";
 import { MOVIE_DNA_CATALOG, movieDnaOption } from "../src/movie-dna-catalog.js";
 import { assessChangeImpact } from "./change-impact.js";
+import { projectImageNumberLabel, sequenceUploadNumberLabel } from "./asset-storage.js";
 import { characterIdentityAnchor, storyboardGridForSequence } from "./storyboard-grid.js";
 
 const now = () => new Date().toISOString();
-const pad = (value: number) => String(value).padStart(2, "0");
+const pad = sequenceUploadNumberLabel;
 const recordKey = (sequenceId: string, platform: TargetPlatform) => `${sequenceId}:${platform}`;
 const normalizeText = (value: unknown) => String(value ?? "").trim();
 const unique = (values: Array<string | undefined>) => [...new Set(values.filter((value): value is string => Boolean(value?.trim())).map((value) => value.trim()))];
@@ -84,7 +85,7 @@ const platformTag = (profile: PlatformProfile, position: number, name: string) =
 const packageFilename = (position: number, permanentFilename: string) => {
   const extension = path.extname(permanentFilename) || ".png";
   const base = path.basename(permanentFilename, extension).replace(/^\d+[_-]?/, "").replace(/[^a-z0-9_-]+/gi, "_");
-  return `${pad(position)}_${base || "Reference"}${extension}`;
+  return `${sequenceUploadNumberLabel(position)}_${base || "Reference"}${extension}`;
 };
 
 const sequenceSource = (project: MovieProject, sequenceId: string) => {
@@ -162,7 +163,9 @@ const buildReferences = (
       missing: false,
     });
   }
-  refs.sort((a, b) => a.priority - b.priority || a.permanentProjectImageNumber - b.permanentProjectImageNumber);
+  // Permanent numbering is the stable, user-visible master order. Platform upload
+  // positions are then assigned sequentially without ever reusing that number as a tag.
+  refs.sort((a, b) => a.permanentProjectImageNumber - b.permanentProjectImageNumber || a.priority - b.priority);
   const priorSelection = new Map(prior?.state.references.map((reference) => [reference.assetId, reference.selected]) ?? []);
   const mode = prior?.referenceLimitMode ?? "REVIEW";
   refs.forEach((reference, index) => {
@@ -344,7 +347,7 @@ export const renderNormalPrompt = (state: SequencePromptState, profile: Platform
   section("LOCATION_ENVIRONMENT", `${state.location.name} [${state.location.id}] — ${state.location.description}\nTime: ${state.environment.timeOfDay}. Weather: ${state.environment.weather}. Lighting: ${state.environment.lighting}. Condition: ${state.environment.condition}.`),
   section("PRODUCTION_ASSETS", `Props: ${list(state.props)}\nVehicles: ${list(state.vehicles)}\nWeapons: ${list(state.weapons)}\nAnimals: ${list(state.animals)}\nCreatures: ${list(state.creatures)}\nCostumes: ${list(state.costumes)}`),
   section("SHOT_PLAN", state.shots.map((shot) => `SHOT ${pad(shot.number)} · ${shot.durationSeconds}s · ${shot.camera} · ${shot.framing} · ${shot.lens} · ${shot.focalLength} · ${shot.depthOfField} · ${shot.movement}\nAction: ${shot.action}\nDialogue relation: ${shot.dialogueIds.join(", ") || "None"}. Continuity purpose: ${shot.continuityPurpose}`).join("\n\n")),
-  section("STORYBOARD_GRID", state.storyboardGrid.enabled ? `OPTIONAL GRID ENABLED · ${state.storyboardGrid.status} · Source: existing Shot Planner (never replaced).\nPermanent reference: ${state.storyboardGrid.projectImageNumber !== undefined ? `Project Image ${pad(state.storyboardGrid.projectImageNumber)} · ${state.storyboardGrid.permanentFilename}` : "not allocated"}.\n${state.storyboardGrid.panels.map((panel) => `PANEL ${pad(panel.number)} · ${panel.beat}\nCAM: ${panel.camera}. MOVE: ${panel.movement}. ${panel.annotationType}: ${panel.annotation}.`).join("\n")}` : "Optional Storyboard Grid disabled. The existing Shot Planner remains the authoritative shot plan."),
+  section("STORYBOARD_GRID", state.storyboardGrid.enabled ? `OPTIONAL GRID ENABLED · ${state.storyboardGrid.status} · Source: existing Shot Planner (never replaced).\nPermanent reference: ${state.storyboardGrid.projectImageNumber !== undefined ? `Project Image ${projectImageNumberLabel(state.storyboardGrid.projectImageNumber)} · ${state.storyboardGrid.permanentFilename}` : "not allocated"}.\n${state.storyboardGrid.panels.map((panel) => `PANEL ${pad(panel.number)} · ${panel.beat}\nCAM: ${panel.camera}. MOVE: ${panel.movement}. ${panel.annotationType}: ${panel.annotation}.`).join("\n")}` : "Optional Storyboard Grid disabled. The existing Shot Planner remains the authoritative shot plan."),
   section("STYLE_ANCHOR", state.styleAnchor),
   section("CAMERA", Object.entries(state.camera).map(([key, value]) => `${key}: ${value}`).join("\n") + `\nLens style: ${state.lens.style}. Focal length: ${state.lens.focalLength}. Depth of field: ${state.lens.depthOfField}.`),
   section("LIGHTING", Object.entries(state.lighting).map(([key, value]) => `${key}: ${value}`).join("\n")),
@@ -352,7 +355,7 @@ export const renderNormalPrompt = (state: SequencePromptState, profile: Platform
   section("AUDIO", `Voices: ${list(state.audio.voices)}\nAmbient: ${list(state.audio.ambient)}\nSound effects: ${list(state.audio.soundEffects)}\nNarration: ${list(state.audio.narrationRules)}\nMusic: ${list(state.audio.musicRules)}\nIntentional silence: ${list(state.audio.silenceRules)}`),
   section("START_MID_END", `START STATE: ${state.startState}\nMID STATE: ${state.midState}\nEND STATE: ${state.endState}`),
   section("CONTINUITY", `${state.continuity.summary}\nScreen direction: ${state.continuity.screenDirection}. Movement direction: ${state.continuity.movementDirection}. Weather: ${state.continuity.weather}. Lighting: ${state.continuity.lighting}.\n${state.continuity.entities.map((entity) => Object.entries(entity).map(([key, value]) => `${key}=${value}`).join("; ")).join("\n")}`),
-  section("REFERENCES", state.references.filter((reference) => reference.selected).map((reference) => `${reference.promptTag} — ${reference.referenceRole}; controls ${reference.assetName}. Project Image ${pad(reference.permanentProjectImageNumber)} remains ${reference.permanentFilename}; package file ${reference.packageFilename}.`).join("\n")),
+  section("REFERENCES", state.references.filter((reference) => reference.selected).map((reference) => `${reference.promptTag} — ${reference.referenceRole}; controls ${reference.assetName}. Project Image ${projectImageNumberLabel(reference.permanentProjectImageNumber)} remains ${reference.permanentFilename}; package file ${reference.packageFilename}.`).join("\n")),
   section("NEGATIVE_RULES", lines(state.negativeRules)),
   section("PLATFORM_INSTRUCTIONS", `${profile.name} profile v${profile.version}. ${profile.instructions}\nPrompt style: ${profile.promptStyle}\nDuration: supported ${profile.durationSupport.join(", ")}s; maximum ${profile.maxDurationSeconds}s.\nReferences: maximum ${profile.maxReferences}; syntax ${profile.referenceSyntax}.\nStoryboard Grid: ${profile.storyboardGridSupport ? profile.storyboardGridBehavior : "Not supported by this profile version."}\nCamera syntax: ${profile.cameraSyntaxPreferences}\nDialogue: ${profile.dialogueSupport}\nAudio: ${profile.audioSupport}\nNegative prompts: ${profile.negativePromptBehavior}\nRestrictions: ${list(profile.knownRestrictions)}\nExport rules: ${list(profile.exportRules)}`),
 ].join("\n\n");
@@ -571,11 +574,26 @@ export const refreshPromptOutdatedState = (project: MovieProject) => {
 };
 
 export const sequenceReferenceManifest = (record: SequencePromptRecord) => ({
-  sequenceNumber: record.state.sequenceNumber,
-  sequenceId: record.sequenceId,
+  schema_version: 2,
+  sequence: record.state.sequenceNumber,
+  sequence_id: record.sequenceId,
   platform: record.platform,
-  promptVersion: record.versions.length,
-  references: record.state.references.filter((reference) => reference.selected).map((reference) => ({ uploadPosition: reference.platformUploadPosition, promptTag: reference.promptTag, permanentProjectImageNumber: reference.permanentProjectImageNumber, permanentFilename: reference.permanentFilename, packageFilename: reference.packageFilename, assetId: reference.assetId, assetName: reference.assetName, assetType: reference.assetType, referenceRole: reference.referenceRole, reasonRequired: reference.reasonRequired, approvalState: reference.approvalState, lockState: reference.lockState, missing: reference.missing })),
+  prompt_version: record.versions.length,
+  references: record.state.references.filter((reference) => reference.selected).map((reference) => ({
+    project_image_number: reference.permanentProjectImageNumber,
+    project_filename: reference.permanentFilename,
+    upload_position: reference.platformUploadPosition,
+    package_filename: reference.packageFilename,
+    prompt_tag: reference.promptTag,
+    asset_id: reference.assetId,
+    asset_name: reference.assetName,
+    asset_type: reference.assetType,
+    reference_role: reference.referenceRole,
+    reason_required: reference.reasonRequired,
+    approval_state: reference.approvalState,
+    lock_state: reference.lockState,
+    missing: reference.missing,
+  })),
 });
 
 export const sequenceReferencePackage = (project: MovieProject, sequenceId: string, platform: TargetPlatform) => {

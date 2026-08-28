@@ -1,0 +1,109 @@
+CONTINUITY STUDIO BY BURABEEH — VOICEOVER SCRIPT
+
+FULL TUTORIAL
+
+[OPENING]
+Welcome to Continuity Studio By BURABEEH. This tutorial will show you how to build an AI movie from the first idea through story, characters, production assets, continuity, script, shots, sequences, final generation prompts, video review, and export. Everything you see is the real running application. We are using a clean tutorial-only project called The Fire Beyond the Dunes, so no existing production project is changed.
+
+[PROJECT SETUP]
+Start with New Movie Project. Give the project a working name and movie title, then describe the movie idea in one clear paragraph. For this demonstration, Rashid is a desert courier in the 1965 United Arab Emirates who discovers a silent camp and a ceremonial knife.
+
+Choose the runtime and sequence duration together. Continuity Studio calculates the sequence count automatically. A six-minute movie divided into thirty-second sequences creates twelve sequences. Our three-minute demonstration uses twelve-second sequences, producing fifteen sequences. Shorter sequences give more precise continuity control but require more generation attempts.
+
+Select the aspect ratio and resolution for the delivery platform. Choose the film language separately from the dialogue language. Then decide whether the finished movie uses narration, dialogue, music, and subtitles. These are production rules, not cosmetic switches. If music is disabled, downstream prompts carry a NO MUSIC rule. Tutorial captions are separate from the movie subtitle setting.
+
+Choose the target generation platform. Platform limits are versioned profiles, so duration, reference capacity, audio support, and syntax can change without changing your story. Finally, choose Full Automatic to let the Production Agent continue through the pipeline, or Phases to stop at approval gates. Phases is ideal when identity, style, and continuity must be reviewed carefully.
+
+[REFERENCE-FIRST SETUP]
+Before Story generation, the reference gate asks whether a real person or existing design must remain visually consistent. Uploading a main-character image makes the original file the protected identity source. The Studio never overwrites it. It can create a multi-view character sheet, but every generated view remains linked back to the original identity. If you have no source image, the Story can define the character and a generated master can be approved later.
+
+[VISUAL MOVIE DNA]
+Movie DNA controls how the film looks. It is inherited by characters, assets, scripts, shots, sequence prompts, and validation. Genre describes the kind of story. Cinematic Style describes how that story is photographed and presented. Superhero action science-fiction drama is a genre combination; modern Hollywood blockbuster is a cinematic style.
+
+Build the DNA from genre, combined genres, cinematic style, film photography, film stock, colour grade, camera, camera movement, lens, focal length, depth of field, lighting, image feel, period, country, environment, production design, costume direction, visual effects, realism, and aspect ratio. View All Options expands a category. Show Less closes it. Search and groups help narrow large libraries. Image previews communicate the visual result, while Compare places choices side by side. Custom options let you add a production-specific treatment. Presets save combinations for reuse, and Help Me Choose recommends a coherent direction from the project idea.
+
+The Movie DNA Board is the final review surface. Look for contradictory choices, confirm every required category, and generate the Movie DNA Master Frame. The master frame controls visual style, palette, lighting, texture, and production world. It does not control character identity. When the board is correct, lock Movie DNA. Locking creates a protected version so later prompt editing cannot silently redesign the movie.
+
+[STORY AND FILM BIBLE]
+Story offers three starting methods: write manually, paste an existing story, or develop from the idea with AI. The generated workspace contains the full story, story structure, timeline, character arcs, sequence breakdown, and a distraction-free Reading Mode. You can edit directly or ask AI Modify for a focused change. Review the proposal before applying it. Approval accepts the draft; locking makes that version canonical and forces later changes through impact review.
+
+The Film Bible turns the approved Story into production law. It stores world rules, characters, relationships, locations, objects, creatures, animals, vehicles, costumes, historical information, continuity rules, and durable production facts. Review assumptions that would affect later assets or scenes, then approve and lock the Bible. Story says what happens; the Film Bible says what must remain true while it happens.
+
+[CHARACTERS]
+Character Analysis finds every required person in the approved story and separates the main character from supporting roles. The uploaded Rashid reference remains the highest-priority identity source. The generated character sheet provides the views needed by the story—front, side, three-quarter, full body, expression, wardrobe, equipment, or action views—without replacing the source image.
+
+Supporting characters use the same reference workflow when a fixed identity is needed. Character States record how one permanent person changes across the movie: clean, dusty, injured, wet, or wearing a different costume. A state is not a new character. It is a versioned condition attached to the same character ID and to the sequence where the change occurs.
+
+[ASSET MANIFEST AND LIBRARY]
+The Asset Manifest converts story requirements into permanent production records. Every production image receives one stable Project Image number and a flat numbered filename, such as 001 Movie DNA Master Frame, 002 Main Character Reference, 003 Main Character Sheet, 004 Camel, 005 Desert, 006 Camp, and 007 Knife. New images continue upward. Existing numbers never move.
+
+Use the Asset Library to search and filter characters, states, locations, props, vehicles, animals, creatures, costumes, and environments. Asset Health shows missing, generated, approved, and locked records. You can generate a missing asset, upload a reference, approve it, lock it, download one image, or download the complete flat asset folder.
+
+Regenerate Image creates a candidate version beside the approved image. Accepting the candidate updates the asset version while preserving the permanent Project Image number and filename. Rejected versions remain in history, which keeps prompt references and audit records stable.
+
+[STORY TIMELINE, CONTINUITY, AND AUDIO]
+The Story Timeline records what happened during the movie and when it happened. Each event is connected to movie time, sequence, location, characters, objects, and state changes.
+
+The Continuity Ledger remembers the current state of everything: character condition, clothing, injury, props, vehicles, location, weather, lighting, knowledge, and screen direction. Imagine Rashid drops the ceremonial knife in Sequence Three. If Sequence Four accidentally gives it back without a recovery event, Continuity Studio raises a warning. This is one of the main purposes of the Studio. If an object was dropped, damaged, lost, or changed earlier, the Studio remembers it. Rejected video attempts never update permanent continuity.
+
+The Audio Bible locks character voices, language, accent, tone, delivery, pronunciation, narration, music, ambient sound, sound effects, and intentional silence. When music is disabled, NO MUSIC travels into generated prompts. A locked voice identity remains connected to every approved dialogue line.
+
+[FULL SCRIPT AND DIALOGUE LOCK]
+Full Script combines the approved story, Film Bible, characters, assets, timeline, continuity, and Audio Bible. Use Full Screenplay for the complete read, By Sequence for generation units, By Scene for location and time blocks, Dialogue Only for performance review, Shot Script for camera execution, Production Script for technical planning, and Reading Mode for uninterrupted review.
+
+Each dialogue record stores speaker, language, accent, emotion, delivery, timing, and voice identity. Approve and lock exact dialogue after performance and duration checks. Locked dialogue does not change when you later adjust a camera, lens, movement, framing, or shot order.
+
+[SHOT AND SEQUENCE PLANNING]
+The Shot Planner divides a sequence into timed shots. Review shot type, duration, camera, lens, movement, framing, action, linked dialogue, and continuity purpose. Reorder shots when needed, but keep the summed shot duration equal to the sequence duration. Timing validation prevents an underfilled or overfilled generation unit.
+
+The Sequence Planner shows the entire movie as numbered time ranges. Every sequence lists its dramatic purpose, characters, Character States, location, assets, dialogue, shots, Start State, Mid State, End State, readiness, warnings, and missing assets. Lock the formal sequence only after its dependencies and timing are valid.
+
+[SEQUENCE WORKSPACE AND PLATFORM PROMPTS]
+Sequence Workspace v3 compiles one structured Prompt State into both a Normal Prompt and a JSON Prompt. The tabs are synchronized views of the same source data. A meaningful edit in either view is reviewed and then reflected in the other; they are not independent documents.
+
+Use Previous and Next to move through the movie. Production panels show story purpose, exact dialogue, shot plan, continuity inheritance, references, negatives, and validation. The platform selector recompiles the same approved movie state for Seedance, Higgsfield, MiniMax, Veo, Kling, Runway, or Sora. Story, identity, and continuity do not change; platform structure, syntax, supported duration, audio fields, and reference capacity do.
+
+This Seedance prompt is valid with nine recommended references. Switching to Veo shows a blocked validation because this versioned profile accepts fewer references. The Studio does not invent a limit or silently remove a required identity. You can use the recommended set, choose manually, create a merged sheet where supported, or change platform.
+
+[REFERENCE MAPPING AND RULES]
+Permanent Project Image numbers are global project identities. Platform upload positions are temporary sequence instructions. Rashid may remain Project Image 017 everywhere, while this sequence maps him to @Image 2. The reference package shows the exact upload order and creates numbered files such as 01 Movie DNA, 02 Rashid, 03 Camel, and 04 Camp, plus prompt.txt, prompt.json, and reference_manifest.json. Upload those files to the generation platform in the same order.
+
+The rule system keeps explicit negatives close to the prompt: NO MUSIC, NO SUBTITLES, or NO NARRATION when disabled; NO EXTRA PEOPLE; NO DUPLICATE CHARACTERS; NO FACE CHANGES; NO MORPHING; NO RANDOM PROPS; NO UNSCRIPTED COSTUME CHANGES; NO RESTORED LOST OBJECTS; NO HISTORICAL ERRORS; NO CHANGES TO LOCKED DIALOGUE; and NO CHANGES TO LOCKED MOVIE DNA. The optional Storyboard Grid supplements the Shot Planner; it does not replace structured shots.
+
+[GENERATED VIDEO RETURN AND CONTINUITY TRANSFER]
+After generating a sequence externally, import the resulting video into the same sequence. Continuity Studio records the sequence number, platform, prompt version, JSON version, references, attempt number, date, filename, and duration.
+
+Review identity, face, clothing, duplicate people, morphing, props, vehicles, animals, location, Movie DNA, colour grade, lighting, camera, movement direction, screen direction, dialogue, Start State, and End State. Choose Approve, Reject, Regenerate, or Approve with Notes. For a failed attempt, record the reason and regenerate only the affected instruction—face, clothing, camera, lighting, prop, location, dialogue, movement, or continuity—without rebuilding the entire movie.
+
+All attempts remain in history. In this demonstration, the first result is rejected because the ending does not match the planned End State. A corrected result is imported and locked. Only the approved attempt updates permanent continuity. Sequence One End State then becomes Sequence Two Start State, and the next prompt recompiles from that approved ending.
+
+[DASHBOARD, EXPORT, AND CLOSE]
+The Movie Progress Dashboard summarizes total sequences, approved, ready, blocked, rejected, waiting for generation, missing assets, prompt warnings, and continuity warnings. Our tutorial project finishes with fifteen of fifteen sequences approved, no missing assets, and no open continuity warnings.
+
+Final Project Export downloads Movie DNA, Story, Film Bible, characters, character sheets and states, numbered assets, Asset Manifest, Full Script, Dialogue Script, shot plans, sequence plans, Normal and JSON prompts, reference maps, sequence reference packages, Continuity Ledger, Audio Bible, generation history, approved video information, and the final production report.
+
+You have now followed the complete Continuity Studio By BURABEEH workflow—from the first idea to a validated, continuity-aware movie package. Use Phases when you want deliberate approval at every gate, or Full Automatic when the same locked rules can safely guide the entire run.
+
+QUICK START
+
+Welcome to Continuity Studio By BURABEEH. Create a new project, enter the movie title and idea, then choose runtime and sequence duration. The Studio calculates how many sequences the movie needs. Select aspect ratio, resolution, film and dialogue languages, narration, dialogue, music, subtitles, and a generation platform. Choose Full Automatic for an uninterrupted run or Phases for approval gates.
+
+If character identity matters, upload the main reference before Story generation. The original remains protected while generated character sheets and states stay linked to it.
+
+Build and lock Movie DNA. Genre defines the kind of story; Cinematic Style defines its photographic presentation. Review the complete board and master frame before locking, because DNA flows into every later asset and prompt.
+
+Create the Story manually, from pasted text, or with AI. Review structure, timeline, arcs, and sequence breakdown, then approve and lock. Approve the Film Bible to establish world rules, history, locations, objects, creatures, costumes, and continuity facts.
+
+Character Analysis finds the required cast. Generate identity-linked sheets and sequence-specific states. Build the Asset Manifest and Asset Library. Each image gets a permanent numbered filename. Regeneration creates a version without changing that permanent number.
+
+Generate the Full Script, lock exact dialogue, and review the Shot and Sequence Planners. Every sequence must have valid timing, dependencies, Start State, Mid State, and End State.
+
+In Sequence Workspace v3, Normal and JSON prompts share one structured Prompt State. Select Seedance, Higgsfield, MiniMax, Veo, Kling, Runway, or Sora. The movie facts remain fixed while the versioned Platform Profile changes syntax and limits. Download the reference package and upload its files in exact numerical order.
+
+Import the generated video. The Studio stores the platform, prompt versions, references, attempt, date, filename, and duration. Reject errors with a precise reason, regenerate only the affected instructions, and lock the approved result. An approved End State automatically becomes the next sequence Start State; rejected attempts never change permanent continuity.
+
+The dashboard shows approved, ready, blocked, rejected, warnings, and missing assets. When every sequence is approved, download the complete project ZIP containing Story, Bible, identities, assets, scripts, prompts, reference maps, ledger, audio, generation history, videos, and the final production report.
+
+SOCIAL DEMO
+
+This is Continuity Studio By BURABEEH: one production brain for an AI movie from idea to final sequence. Lock your visual Movie DNA, protect character identity, build the Story and Film Bible, create permanently numbered assets, lock exact dialogue, plan shots, and compile synchronized Normal and JSON prompts for leading video platforms. Import every result, preserve rejected attempts, inspect continuity, and transfer each approved End State into the next sequence automatically. When the dashboard reaches one hundred percent, export the entire production package as a structured ZIP.

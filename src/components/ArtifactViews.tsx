@@ -191,20 +191,53 @@ function ReferenceCard({ project, reference, onUpdate }: { project: MovieProject
 }
 
 function Overview({ project }: { project: MovieProject }) {
-  const completed = project.phases.filter((phase) => phase.state === "completed").length;
-  const progress = Math.round((completed / project.phases.length) * 100);
+  const sequences = project.production.sequences;
+  const total = sequences.length;
+  const approved = sequences.filter((sequence) => ["APPROVED", "LOCKED"].includes(sequence.status)).length;
+  const ready = sequences.filter((sequence) => sequence.status === "READY").length;
+  const rejected = sequences.filter((sequence) => sequence.status === "REJECTED").length;
+  const promptRecords = Object.values(project.production.promptWorkspace.records);
+  const blocked = promptRecords.filter((record) => record.state.validation.status === "BLOCKED").length;
+  const waiting = sequences.filter((sequence) => ["READY", "GENERATED"].includes(sequence.status)).length;
+  const progress = total > 0 ? Math.round((approved / total) * 100) : 0;
+  const missingAssets = project.production.assets.filter((asset) => asset.required && !asset.imagePath && asset.missingDecision?.action !== "IGNORE");
+  const continuityWarnings = project.memory.productionMemory.continuity.warnings.filter((warning) => warning.status === "OPEN");
+  const promptWarnings = promptRecords.flatMap((record) => record.state.validation.issues.filter((issue) => issue.level !== "VALID"));
+  const stages = [
+    { label: "Story", detail: `Story v${project.production.story.version} ${project.production.story.status.toLowerCase()}.`, done: ["APPROVED", "LOCKED"].includes(project.production.story.status) },
+    { label: "Film Bible", detail: `Film Bible v${project.production.filmBible.version} ${project.production.filmBible.status.toLowerCase()}.`, done: ["APPROVED", "LOCKED"].includes(project.production.filmBible.status) },
+    { label: "Assets", detail: `${project.production.assets.length} numbered production assets · ${missingAssets.length} missing.`, done: project.production.assets.length > 0 && missingAssets.length === 0 },
+    { label: "Sequences", detail: `${total} timed sequence plans with ${sequences.reduce((sum, sequence) => sum + sequence.shots.length, 0)} shots.`, done: total > 0 && sequences.every((sequence) => sequence.shots.length > 0) },
+    { label: "Prompt Pipeline", detail: `${promptRecords.length} platform prompt record${promptRecords.length === 1 ? "" : "s"} · ${blocked} blocked.`, done: promptRecords.some((record) => record.state.validation.status === "VALID") },
+    { label: "Generated Video", detail: `${sequences.filter((sequence) => Boolean(sequence.videoPath)).length}/${total} sequence videos imported.`, done: total > 0 && sequences.every((sequence) => Boolean(sequence.videoPath)) },
+    { label: "Continuity", detail: `${project.production.continuityLedger.length} permanent ledger entries · ${continuityWarnings.length} open warnings.`, done: total > 0 && approved === total && continuityWarnings.length === 0 },
+    { label: "Final Export", detail: approved === total && total > 0 ? "Complete production package is ready to export." : "Complete and approve every sequence before final export.", done: total > 0 && approved === total },
+  ];
   return (
     <div className="artifact-page">
       <div className="overview-hero">
         <div><span className="eyebrow">Production overview</span><h2>{project.title}</h2><p>{project.idea}</p></div>
-        <div className="overview-score"><strong>{progress}%</strong><span>production planned</span></div>
+        <div className="overview-score"><strong>{progress}%</strong><span>movie complete</span></div>
+      </div>
+      <div className="overview-metrics">
+        <article><strong>{total}</strong><span>Total sequences</span></article>
+        <article><strong>{approved}</strong><span>Approved</span></article>
+        <article><strong>{ready}</strong><span>Ready</span></article>
+        <article><strong>{blocked}</strong><span>Blocked prompts</span></article>
+        <article><strong>{rejected}</strong><span>Rejected</span></article>
+        <article><strong>{waiting}</strong><span>Waiting generation</span></article>
+      </div>
+      <div className="overview-alerts">
+        <article><span>Missing assets</span><strong>{missingAssets.length}</strong></article>
+        <article><span>Continuity warnings</span><strong>{continuityWarnings.length}</strong></article>
+        <article><span>Prompt warnings</span><strong>{promptWarnings.length}</strong></article>
       </div>
       <div className="overview-grid">
-        {project.phases.map((phase, index) => (
-          <article key={phase.id} className={`overview-phase ${phase.state}`}>
+        {stages.map((stage, index) => (
+          <article key={stage.label} className={`overview-phase ${stage.done ? "completed" : "pending"}`}>
             <span className="phase-number">{String(index + 1).padStart(2, "0")}</span>
-            <div><div className="eyebrow">{phase.state.replace("_", " ")}</div><h3>{phase.label}</h3><p>{phase.summary ?? phase.description}</p></div>
-            {phase.state === "completed" ? <Check size={16} /> : null}
+            <div><div className="eyebrow">{stage.done ? "complete" : "pending"}</div><h3>{stage.label}</h3><p>{stage.detail}</p></div>
+            {stage.done ? <Check size={16} /> : null}
           </article>
         ))}
       </div>

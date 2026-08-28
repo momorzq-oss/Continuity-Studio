@@ -118,10 +118,17 @@ describe("Full Script v2 production workflow", () => {
     expect(script.dialogue.find((item) => item.id === line.id)?.exactDialogue).toBe(exactWords);
     expect(() => updateDialogueLine(project, line.id, { exactDialogue: "Changed words" }, "Should be blocked")).toThrow(/unlock/i);
 
+    // Exact words stay locked, but a newly available permanent voice identity
+    // must still be reattached when the next script version is generated.
+    script.dialogue.find((item) => item.id === line.id)!.audioVoiceProfileId = undefined;
+    script.dialogue.find((item) => item.id === line.id)!.timingWarning = "TIMING WARNING · stale generated window.";
     generateProductionScript(project, "Protected regeneration test");
     expect(project.memory.productionMemory.script.scriptVersion).toBe(3);
-    expect(project.memory.productionMemory.script.dialogue.find((item) => item.sequenceId === line.sequenceId)?.exactDialogue).toBe(exactWords);
-    expect(project.memory.productionMemory.script.dialogue.find((item) => item.sequenceId === line.sequenceId)?.lockState).toBe("LOCKED");
+    const regeneratedLine = project.memory.productionMemory.script.dialogue.find((item) => item.sequenceId === line.sequenceId);
+    expect(regeneratedLine?.exactDialogue).toBe(exactWords);
+    expect(regeneratedLine?.lockState).toBe("LOCKED");
+    expect(regeneratedLine?.audioVoiceProfileId).toBe(project.memory.productionMemory.audioBible.voiceProfiles.find((profile) => profile.characterId === line.speakerCharacterId)?.id);
+    expect(regeneratedLine?.timingWarning).toBeUndefined();
     expect(project.memory.productionMemory.script.versions.map((version) => version.version)).toEqual(expect.arrayContaining([1, 2]));
   });
 

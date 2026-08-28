@@ -83,8 +83,31 @@ describe("gated production workflow", () => {
     expect(project.production.continuityLedger).toHaveLength(0);
     sequence.status = "GENERATED";
     sequence.videoPath = "generated_video/seq-01.mp4";
+    sequence.generationHistory.push({
+      id: "attempt-2",
+      status: "GENERATED",
+      videoPath: sequence.videoPath,
+      importedFilename: "sequence-01-v2.mp4",
+      platform: "Seedance",
+      promptVersion: 3,
+      jsonVersion: 3,
+      referenceAssetIds: ["asset-1", "asset-2"],
+      attemptNumber: 2,
+      generationDate: "2026-08-28T00:00:00.000Z",
+      durationSeconds: sequence.durationSeconds,
+      createdAt: "2026-08-28T00:00:00.000Z",
+    });
     approveSequence(project, sequence.id);
     expect(sequence.status).toBe("APPROVED");
+    expect(sequence.generationHistory.at(-1)).toMatchObject({
+      status: "APPROVED",
+      importedFilename: "sequence-01-v2.mp4",
+      platform: "Seedance",
+      promptVersion: 3,
+      jsonVersion: 3,
+      referenceAssetIds: ["asset-1", "asset-2"],
+      attemptNumber: 2,
+    });
     expect(project.production.continuityLedger.length).toBe(sequence.assetIds.length);
     expect(project.production.continuityLedger.every((entry) => entry.source === "APPROVED")).toBe(true);
   });

@@ -62,7 +62,7 @@ Seedance, Higgsfield, MiniMax, Veo, Kling, Runway, and Sora are manual prompt/re
 
 ## Generated video cannot be imported
 
-Generated-video import is roadmap work and is not available in v1.1.0. Keep the video beside the exported project and record the provider, sequence, prompt version, and reference package manually.
+Open the matching sequence in Sequence Workspace and use **Choose generated video** or **Import another attempt**. Supported browser inputs are MP4, WebM, and MOV. If import fails, verify the local server is running, the file is readable, and the project remains writable. Do not rename or replace files inside project storage manually; retry through the interface so prompt versions, references, and attempt metadata remain linked.
 
 ## Project data or migration issue
 

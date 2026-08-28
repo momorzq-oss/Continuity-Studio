@@ -38,8 +38,8 @@ npm run desktop:package
 
 Version 1.1.0 artifacts are placed in `release/windows-v1.1.0/`:
 
-- `Continuity-Studio-By-BURABEEH-0.2.1-x64-nsis.exe` — assisted installer; this is the file to double-click for installation.
-- `Continuity-Studio-By-BURABEEH-0.2.1-x64-portable.exe` — portable executable.
+- `Continuity-Studio-By-BURABEEH-1.1.0-x64-nsis.exe` — assisted installer; this is the file to double-click for installation.
+- `Continuity-Studio-By-BURABEEH-1.1.0-x64-portable.exe` — portable executable.
 - `win-unpacked/Continuity Studio By BURABEEH.exe` — unpacked executable for release smoke testing.
 
 The installer is configured with application metadata, Start Menu shortcut, optional Desktop shortcut selection, per-user install, changeable install directory, installer/uninstaller icons, and uninstall support.

@@ -1,3 +1,3 @@
 # Roadmap
 
-The current roadmap is maintained at [docs/ROADMAP.md](docs/ROADMAP.md). It clearly separates shipped v1.1.0 features from generated-video import, inspection, approval, continuity transfer, dashboard, final-export expansion, and end-to-end movie verification work.
+The current roadmap is maintained at [docs/ROADMAP.md](docs/ROADMAP.md). The source build now includes generated-video import, attempt history, manual approval or rejection, approved End State transfer, the production dashboard, expanded project export, and a fresh end-to-end tutorial verification project. Automated visual inspection, targeted correction, direct provider adapters, and final movie assembly remain planned.

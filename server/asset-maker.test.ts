@@ -29,7 +29,7 @@ describe("AssetMaker", () => {
     await maker.generateAsset(project, "CHAR_TEST_001");
     await maker.generateContinuitySheet(project, "CHAR_TEST_001");
     const asset = project.memory.database.assets[0]!;
-    expect(asset.generatedImagePath).toMatch(/\.png$/);
+    expect(asset.generatedImagePath).toMatch(/^assets\/\d{3}_.+\.png$/);
     expect((await readFile(store.resolveProjectFile(project.id, asset.generatedImagePath!))).subarray(0, 8)).toEqual(Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]));
     expect(project.memory.database.continuitySheets[0]?.views.every((view) => view.imagePath)).toBe(true);
 
@@ -62,6 +62,31 @@ describe("AssetMaker", () => {
     expect(reopened.memory.database.imageGenerationJobs[0]).toMatchObject({ status: "GENERATION_FAILED", error: "Visible provider failure for Retry test." });
   });
 
+  it("recovers a failed asset whose metadata still points at a missing active image", async () => {
+    const root = path.join(tmpdir(), `continuity-asset-stale-path-${Date.now()}-${Math.random().toString(16).slice(2)}`);
+    roots.push(root);
+    const store = new ProjectStore(root);
+    const project = await store.createProject(input, { kind: "builtin", label: "test", available: true });
+    const record = addManualManifestAsset(project, { name: "Recovered Lantern", category: "prop", description: "A period brass lantern that must be regenerated.", sequenceIds: ["SEQ_01"], referenceRole: "PROP" });
+    const entity = project.memory.database.assets.find((item) => item.id === record.id)!;
+    record.imagePath = `assets/${record.filename}`;
+    record.status = "GENERATION_FAILED";
+    record.generationError = "The active image file is missing on disk.";
+    entity.generatedImagePath = record.imagePath;
+    entity.referenceImages = [record.imagePath];
+    entity.approvalState = "GENERATION_FAILED";
+    entity.generationError = record.generationError;
+
+    const maker = new AssetMaker(store);
+    await maker.generateAllAssets(project);
+
+    expect(entity.approvalState).toBe("REVIEW");
+    expect(record.status).toBe("REVIEW");
+    expect(entity.generationError).toBeUndefined();
+    expect(record.generationError).toBeUndefined();
+    expect(await store.projectFileExists(project.id, record.imagePath!)).toBe(true);
+  });
+
   it("stages regeneration without touching the active file, then preserves permanent identity on acceptance", async () => {
     const root = path.join(tmpdir(), `continuity-asset-replacement-${Date.now()}-${Math.random().toString(16).slice(2)}`);
     roots.push(root);
@@ -86,14 +111,15 @@ describe("AssetMaker", () => {
 
     const replacementPath = record.pendingVersion!.imagePath;
     await maker.acceptPendingVersion(project, record.id);
-    expect(entity.generatedImagePath).toBe(replacementPath);
+    expect(entity.generatedImagePath).toBe(originalPath);
     expect(entity.approvalState).toBe("LOCKED");
     expect(record.number).toBe(originalNumber);
     expect(record.filename).toBe(originalFilename);
     expect(record.id).toBe(entity.id);
     expect(record.pendingVersion).toBeUndefined();
     expect(await store.projectFileExists(project.id, replacementPath)).toBe(true);
-    expect(await store.projectFileExists(project.id, originalPath)).toBe(false);
-    expect(record.versionHistory?.some((version) => version.version === 1 && version.fileRetained === false)).toBe(true);
+    expect(await store.projectFileExists(project.id, originalPath)).toBe(true);
+    expect(record.versionHistory?.some((version) => version.version === 1 && version.fileRetained === true)).toBe(true);
+    expect(record.imagePath).toBe(`assets/${originalFilename}`);
   });
 });

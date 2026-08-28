@@ -10,10 +10,9 @@ import type {
   ProductionAssetSourceType,
   StoryAssetCandidate,
 } from "../src/types.js";
+import { normalizePermanentAssetFilename, permanentAssetFilename } from "./asset-storage.js";
 
 const now = () => new Date().toISOString();
-const pad = (value: number) => String(value).padStart(2, "0");
-const token = (value: string) => value.replace(/[^a-z0-9]+/gi, "_").replace(/^_+|_+$/g, "") || "Asset";
 const unique = <T>(values: T[]) => [...new Set(values)];
 const stateHash = (value: unknown) => createHash("sha256").update(JSON.stringify(value)).digest("hex").slice(0, 10).toUpperCase();
 
@@ -34,16 +33,6 @@ const categoryToEntityType = (category: ProductionAssetCategory): AssetEntity["c
   if (category === "vfx") return "effect";
   if (["movie_dna", "environment", "makeup", "other"].includes(category)) return "period_reference";
   return category as AssetEntity["category"];
-};
-
-export const manifestCategoryFolder = (category: ProductionAssetCategory) => {
-  const folders: Record<ProductionAssetCategory, string> = {
-    movie_dna: "movie_dna", main_character: "main_character", character: "characters", character_state: "character_states",
-    creature: "creatures", animal: "animals", location: "locations", set: "sets", building: "buildings", room: "rooms",
-    prop: "props", vehicle: "vehicles", weapon: "weapons", costume: "costumes", accessory: "accessories", makeup: "makeup",
-    vfx: "vfx", environment: "environment", story_object: "objects", other: "other",
-  };
-  return folders[category];
 };
 
 const storySnapshot = (project: MovieProject) => {
@@ -302,7 +291,9 @@ export const buildCanonicalAssetManifest = (project: MovieProject) => {
     const timestamp = now();
     const number = existing?.number ?? nextNumber++;
     const extension = existing?.filename.split(".").at(-1) ?? candidate.preferredExtension ?? "png";
-    const filename = existing?.filename ?? `${pad(number)}_${token(candidate.name)}.${extension}`;
+    const filename = existing
+      ? normalizePermanentAssetFilename(number, existing.filename, existing.name || candidate.name)
+      : permanentAssetFilename(number, candidate.name, extension);
     const record: ProductionAssetRecord = {
       ...candidate,
       number,
@@ -468,7 +459,7 @@ export const addManualManifestAsset = (project: MovieProject, input: {
   const filmBibleSources = bibleKeysFor(input.category);
   const storyPurpose = input.storyPurpose?.trim() || "Manually added production requirement.";
   const record: ProductionAssetRecord = {
-    id, number, filename: `${pad(number)}_${token(input.name)}.png`, name: input.name.trim(), category: input.category, description: input.description.trim(),
+    id, number, filename: permanentAssetFilename(number, input.name, "png"), name: input.name.trim(), category: input.category, description: input.description.trim(),
     storyPurpose, filmBibleSources, sourceStoryVersion: storyVersion, sourceFilmBibleVersion: bibleVersion, movieDnaVersion: project.production.movieDna.version,
     continuityNotes: unique([input.description.trim(), ...(input.continuityRequirements ?? []).map((item) => item.trim()).filter(Boolean)]), sequenceIds: unique(input.sequenceIds ?? []), referenceIds: [], dependencyIds,
     referenceRoles: [input.referenceRole ?? "CONTINUITY"], sourceType: "MANUAL", required: true, canGenerate: true,
@@ -521,7 +512,7 @@ export const manifestHealth = (project: MovieProject, record: ProductionAssetRec
   const hasImage = !missingOnDisk && Boolean(record.imagePath || entity?.generatedImagePath);
   return {
     hasImage,
-    missing: Boolean(record.required && !hasImage && record.missingDecision?.action !== "IGNORE"),
+    missing: Boolean(record.required && record.canGenerate !== false && !hasImage && record.missingDecision?.action !== "IGNORE"),
     failed: record.status === "GENERATION_FAILED" || Boolean(record.generationError),
     review: ["REVIEW", "GENERATED", "REGENERATE"].includes(record.status) || Boolean(record.pendingVersion),
   };

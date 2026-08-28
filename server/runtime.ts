@@ -58,6 +58,7 @@ import {
   syncManifestRuntime,
   updateManifestAsset,
 } from "./asset-manifest.js";
+import { activeAssetManifest, assetHistoryManifest } from "./asset-storage.js";
 import {
   approveContinuitySnapshot,
   markProductionMemoryStale,
@@ -102,6 +103,8 @@ import {
   validateSequencePrompt,
 } from "./sequence-workspace.js";
 import { attachStoryboardGridReference, setSequenceStoryboardGrid } from "./storyboard-grid.js";
+import { AutomaticProductionConflictError, AutomaticProductionDirector } from "./automatic-production-director.js";
+import { ManualProductionConflictError, ManualProductionDirector } from "./manual-production-director.js";
 
 const targetPlatformSchema = z.enum(["Seedance", "Higgsfield", "MiniMax", "Veo", "Kling", "Runway", "Sora", "Custom"]);
 
@@ -156,6 +159,9 @@ const createProjectSchema = z.object({
   language: z.string().trim().min(2).max(80),
   visualStyle: z.string().trim().min(2).max(300),
   mode: modeSchema,
+  controlMode: z.enum(["manual", "automatic"]).default("manual"),
+  mainCharacterPreference: z.string().trim().max(500).optional(),
+  preferredPlatform: targetPlatformSchema.optional(),
   brain: brainSchema.optional(),
   storyMode: z.enum(["AI_FIRST", "REFERENCE_FIRST", "HYBRID"]).default("AI_FIRST"),
   era: z.string().trim().min(1).max(120).default("Contemporary"),
@@ -296,6 +302,8 @@ export const createRuntime = async (options: RuntimeOptions) => {
   const storyBrain = new StoryBrain(router);
   const filmBible = new FilmBibleService(router);
   const references = new ReferenceManager(store);
+  const automatic = new AutomaticProductionDirector(store, movieDna, storyBrain, filmBible, agent.assetMaker);
+  const manual = new ManualProductionDirector(store, movieDna, storyBrain, filmBible, agent.assetMaker);
   const app = express();
   app.disable("x-powered-by");
   app.use(express.json({ limit: "32mb" }));
@@ -337,7 +345,9 @@ export const createRuntime = async (options: RuntimeOptions) => {
   });
   app.get("/api/projects/:projectId", async (request, response) => {
     const project = await store.getProject(request.params.projectId);
-    if (await agent.assetMaker.reconcileFileStatus(project)) await store.saveProject(project);
+    // Keep polling reads read-only. A long-running image generation can overlap
+    // the browser's project refresh interval; persisting a stale read here can
+    // overwrite the completed generation metadata after its final save.
     response.json(project);
   });
   app.post("/api/projects/:projectId/change-impact", async (request, response) => {
@@ -757,7 +767,17 @@ export const createRuntime = async (options: RuntimeOptions) => {
         if (!sequence) throw new ProjectNotFoundError(`Sequence ${sequenceId} was not found.`);
         sequence.status = "REJECTED";
         sequence.inspectionNotes.push(reason);
-        sequence.generationHistory.push({ id: crypto.randomUUID(), status: "REJECTED", reason, videoPath: sequence.videoPath, createdAt: new Date().toISOString() });
+        const rejectedAttempt = [...sequence.generationHistory]
+          .reverse()
+          .find((attempt) => attempt.videoPath === sequence.videoPath && attempt.attemptNumber);
+        sequence.generationHistory.push({
+          ...(rejectedAttempt ?? {}),
+          id: crypto.randomUUID(),
+          status: "REJECTED",
+          reason,
+          videoPath: sequence.videoPath,
+          createdAt: new Date().toISOString(),
+        });
         break;
       }
       case "approve_sequence": approveSequence(project, z.string().parse(payload.sequenceId), false); break;
@@ -789,9 +809,20 @@ export const createRuntime = async (options: RuntimeOptions) => {
     const extension = contentType.includes("webm") ? ".webm" : contentType.includes("quicktime") ? ".mov" : ".mp4";
     const relativePath = `generated_video/${sequence.id.toLowerCase()}-${Date.now()}${extension}`;
     await store.writeProjectBinary(project.id, relativePath, Buffer.isBuffer(request.body) ? request.body : Buffer.from(request.body));
+    const platform = project.production.promptWorkspace.selectedPlatforms[sequence.id] ?? project.targetPlatform;
+    const promptRecord = project.production.promptWorkspace.records[`${sequence.id}:${platform}`];
+    const promptVersion = promptRecord?.versions.at(-1)?.version ?? promptRecord?.versions.length ?? 0;
+    const referenceAssetIds = promptRecord?.state.references.filter((reference) => reference.selected).map((reference) => reference.assetId) ?? [];
+    const generationDate = new Date().toISOString();
+    const attemptNumber = Math.max(0, ...sequence.generationHistory.map((attempt) => attempt.attemptNumber ?? 0)) + 1;
+    const importedFilename = decodeURIComponent(String(request.headers["x-filename"] ?? `${sequence.id}${extension}`));
     sequence.videoPath = relativePath;
     sequence.status = "GENERATED";
-    sequence.generationHistory.push({ id: crypto.randomUUID(), status: "GENERATED", videoPath: relativePath, createdAt: new Date().toISOString() });
+    sequence.generationHistory.push({
+      id: crypto.randomUUID(), status: "GENERATED", videoPath: relativePath, importedFilename,
+      platform, promptVersion, jsonVersion: promptVersion, referenceAssetIds, attemptNumber,
+      generationDate, durationSeconds: sequence.durationSeconds, createdAt: generationDate,
+    });
     const gate = project.production.gates.find((item) => item.stage === "video_review");
     if (gate) Object.assign(gate, { status: "REVIEW", updatedAt: new Date().toISOString(), note: `${sequence.id} is ready for continuity inspection.` });
     await store.saveProject(project);
@@ -860,7 +891,9 @@ export const createRuntime = async (options: RuntimeOptions) => {
     references.syncCharacterSheet(project, asset.id);
     syncManifestRuntime(project);
     await store.saveProject(project);
-    response.json(project);
+    if (project.controlMode === "automatic" && project.automaticProduction.status === "WAITING_FOR_MAIN_CHARACTER") {
+      response.status(202).json(await automatic.resume(project.id));
+    } else response.json(project);
   });
   app.get("/api/projects/:projectId/media", async (request, response) => {
     const relative = z.string().min(1).parse(request.query.path);
@@ -1072,6 +1105,20 @@ export const createRuntime = async (options: RuntimeOptions) => {
     response.status(202).json(await agent.regenerate(request.params.projectId, input.phase as PhaseId | undefined, input.feedback));
   });
   app.post("/api/projects/:projectId/agent/cancel", async (request, response) => response.status(202).json(await agent.cancel(request.params.projectId)));
+  app.post("/api/projects/:projectId/automatic/start", async (request, response) => response.status(202).json(await automatic.start(request.params.projectId)));
+  app.post("/api/projects/:projectId/automatic/actions", async (request, response) => {
+    const input = z.object({ action: z.enum(["pause", "resume", "stop", "manual_override", "ai_main_character"]) }).parse(request.body);
+    if (input.action === "pause") return response.json(await automatic.pause(request.params.projectId));
+    if (input.action === "stop") return response.json(await automatic.stop(request.params.projectId));
+    if (input.action === "manual_override") return response.json(await automatic.switchToManual(request.params.projectId));
+    if (input.action === "ai_main_character") return response.status(202).json(await automatic.continueWithAiMainCharacter(request.params.projectId));
+    return response.status(202).json(await automatic.resume(request.params.projectId));
+  });
+  app.post("/api/projects/:projectId/manual/start", async (request, response) => response.json(await manual.start(request.params.projectId)));
+  app.post("/api/projects/:projectId/manual/actions", async (request, response) => {
+    const input = z.object({ action: z.enum(["back", "save", "next"]) }).parse(request.body);
+    response.json(await manual.action(request.params.projectId, input.action));
+  });
   app.post("/api/projects/:projectId/brain/recover", async (request, response) => {
     const input = z.object({
       action: z.enum(["retry", "continue_local", "continue_codex", "switch_brain", "cancel"]),
@@ -1097,6 +1144,30 @@ export const createRuntime = async (options: RuntimeOptions) => {
       if (!relativePath || !await store.projectFileExists(project.id, relativePath)) throw new ProjectNotFoundError(`${record.name} does not have an available image file.`);
       response.setHeader("Content-Disposition", `attachment; filename="${record.filename.replaceAll('"', "")}"`);
       response.sendFile(store.resolveProjectFile(project.id, relativePath));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/api/projects/:projectId/sequences/reference-packages", async (request, response, next) => {
+    try {
+      const project = await store.getProject(request.params.projectId);
+      const platform = targetPlatformSchema.parse(request.query.platform ?? project.targetPlatform) as TargetPlatform;
+      response.setHeader("Content-Type", "application/zip");
+      response.setHeader("Content-Disposition", `attachment; filename="${project.id}-${platform}-sequence-reference-packages.zip"`);
+      const archive = new ZipArchive({ zlib: { level: 9 } });
+      archive.on("error", next);
+      archive.pipe(response);
+      for (const sequence of project.memory.productionMemory.script.sequences) {
+        const pkg = sequenceReferencePackage(project, sequence.id, platform);
+        for (const file of pkg.files) {
+          if (await store.projectFileExists(project.id, file.sourcePath)) archive.file(store.resolveProjectFile(project.id, file.sourcePath), { name: `${pkg.folderName}/${file.packageFilename}` });
+        }
+        archive.append(pkg.record.normalPrompt, { name: `${pkg.folderName}/prompt.txt` });
+        archive.append(pkg.record.jsonPrompt, { name: `${pkg.folderName}/prompt.json` });
+        archive.append(`${JSON.stringify(pkg.manifest, null, 2)}\n`, { name: `${pkg.folderName}/reference_manifest.json` });
+      }
+      await archive.finalize();
     } catch (error) {
       next(error);
     }
@@ -1134,7 +1205,7 @@ export const createRuntime = async (options: RuntimeOptions) => {
         if (scope === "approved") return ["APPROVED", "LOCKED"].includes(record.status);
         if (scope === "locked") return record.status === "LOCKED";
         return true;
-      });
+      }).sort((left, right) => left.number - right.number);
       response.setHeader("Content-Type", "application/zip");
       response.setHeader("Content-Disposition", `attachment; filename="${project.id}-assets-${scope}.zip"`);
       const archive = new ZipArchive({ zlib: { level: 9 } });
@@ -1145,7 +1216,8 @@ export const createRuntime = async (options: RuntimeOptions) => {
         const relativePath = record.imagePath ?? entity?.generatedImagePath;
         if (relativePath && await store.projectFileExists(project.id, relativePath)) archive.file(store.resolveProjectFile(project.id, relativePath), { name: record.filename });
       }
-      archive.append(`${JSON.stringify({ projectId: project.id, scope, exportedAt: new Date().toISOString(), assets: records }, null, 2)}\n`, { name: "asset-manifest.json" });
+      archive.append(`${JSON.stringify({ ...activeAssetManifest(project, records), scope, exportedAt: new Date().toISOString() }, null, 2)}\n`, { name: "asset-manifest.json" });
+      archive.append(`${JSON.stringify(assetHistoryManifest(project), null, 2)}\n`, { name: "asset_history.json" });
       await archive.finalize();
     } catch (error) {
       next(error);
@@ -1201,11 +1273,13 @@ export const createRuntime = async (options: RuntimeOptions) => {
     if (error instanceof z.ZodError) return response.status(400).json({ error: error.issues[0]?.message ?? "Invalid request." });
     if (error instanceof ProjectNotFoundError) return response.status(404).json({ error: error.message });
     if (error instanceof AgentConflictError) return response.status(409).json({ error: error.message });
+    if (error instanceof AutomaticProductionConflictError || error instanceof ManualProductionConflictError) return response.status(409).json({ error: error.message });
     const message = error instanceof Error ? error.message : "Unexpected server error.";
     void logger.error("backend", "Unhandled backend request error.", { message });
     response.status(500).json({ error: message });
   });
-  return { app, store, agent, router, settings, logger };
+  await automatic.resumeInterruptedJobs();
+  return { app, store, agent, automatic, router, settings, logger };
 };
 
 export const startContinuityServer = async (

@@ -2,10 +2,13 @@ import { useEffect, useState } from "react";
 import { Bot, CircleAlert, CloudDownload, Plus, Radio } from "lucide-react";
 import { api } from "./api";
 import { AgentView } from "./components/AgentView";
+import { AutomaticDirectorView } from "./components/AutomaticDirectorView";
 import { AboutView } from "./components/AboutView";
 import { ArtifactView } from "./components/ArtifactViews";
 import type { AddManifestAssetInput } from "./components/AssetLibraryView";
 import { CreateProjectModal } from "./components/CreateProjectModal";
+import { ManualGuidedWorkspace, ManualResumeDialog, manualStepView } from "./components/ManualGuidedWorkspace";
+import type { PendingReferenceImage } from "./components/ReferenceImagePicker";
 import { DiagnosticsView } from "./components/DiagnosticsView";
 import { FirstRunWizard } from "./components/FirstRunWizard";
 import { SettingsView } from "./components/SettingsView";
@@ -65,9 +68,10 @@ export default function App() {
   const [error, setError] = useState<string>();
   const [settings, setSettings] = useState<AppSettings>();
   const [brainStatus, setBrainStatus] = useState<BrainStatusSnapshot>();
+  const [resumeProject, setResumeProject] = useState<MovieProject>();
   const title = viewTitles[activeView];
 
-  const loadProjects = async (preferredId?: string) => {
+  const loadProjects = async (preferredId?: string, offerResume = true) => {
     const list = await api.listProjects();
     setProjects(list);
     const id = preferredId ?? project?.id ?? list[0]?.id;
@@ -75,6 +79,7 @@ export default function App() {
       const loaded = await api.getProject(id);
       setProject(loaded);
       setMode(loaded.mode);
+      if (offerResume && loaded.controlMode === "manual" && loaded.manualProduction.status !== "COMPLETE") setResumeProject(loaded);
     } else {
       setModalOpen(true);
     }
@@ -150,12 +155,15 @@ export default function App() {
     setBusy(true);
     setError(undefined);
     try {
-      const created = await api.createProject(input);
+      let created = await api.createProject(input);
+      if (created.controlMode === "automatic") created = await api.startAutomatic(created.id);
+      else created = await api.startManualGuided(created.id);
       setProject(created);
       setMode(created.mode);
-      setActiveView(created.preStorySetup.completed ? "project_setup" : "reference_setup");
+      setActiveView(created.controlMode === "automatic" ? "agent" : manualStepView(created.manualProduction.currentStep));
       setModalOpen(false);
-      await loadProjects(created.id);
+      setResumeProject(undefined);
+      await loadProjects(created.id, false);
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : "Unable to create the project.");
     } finally {
@@ -170,6 +178,7 @@ export default function App() {
       setProject(loaded);
       setMode(loaded.mode);
       setActiveView("agent");
+      if (loaded.controlMode === "manual" && loaded.manualProduction.status !== "COMPLETE") setResumeProject(loaded);
     } catch (failure) {
       setError(failure instanceof Error ? failure.message : "Unable to open the project.");
     } finally {
@@ -190,8 +199,73 @@ export default function App() {
     }
   };
 
+  const manualGuidedAction = async (action: "back" | "save" | "next") => {
+    if (!project) return;
+    setBusy(true);
+    setError(undefined);
+    try {
+      const updated = await api.manualGuidedAction(project.id, action);
+      setProject(updated);
+      setMode(updated.mode);
+      if (action !== "save") setActiveView(manualStepView(updated.manualProduction.currentStep));
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : "Manual Guided Mode could not continue.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const switchToAutomatic = async () => {
+    if (!project) return;
+    setBusy(true);
+    setError(undefined);
+    try {
+      const updated = await api.startAutomatic(project.id);
+      setProject(updated);
+      setMode(updated.mode);
+      setActiveView("agent");
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : "Unable to switch to Automatic Mode.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const automaticAction = async (action: "pause" | "resume" | "stop" | "manual_override" | "ai_main_character") => {
+    if (!project) return;
+    setBusy(true);
+    setError(undefined);
+    try {
+      const updated = await api.automaticAction(project.id, action);
+      setProject(updated);
+      setMode(updated.mode);
+      if (action === "manual_override") setActiveView(manualStepView(updated.manualProduction.currentStep));
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : "Automatic Mode action failed.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const download = () => {
     if (project) window.location.assign(api.exportUrl(project.id));
+  };
+
+  const uploadAutomaticMainCharacter = async (image: PendingReferenceImage) => {
+    if (!project) return;
+    await act(async () => {
+      const uploaded = await api.uploadReference(project.id, {
+        ...image,
+        name: project.production.characters.find((character) => character.category === "main")?.name || "Main Character",
+        type: "character",
+        mainCharacter: true,
+        storyUsage: "REQUIRED",
+        roles: ["IDENTITY"],
+      });
+      const referenceId = uploaded.preStorySetup.mainCharacterReferenceId;
+      if (!referenceId) throw new Error("The protected Main Character upload was not linked to the project.");
+      return api.generateReferenceSheet(project.id, referenceId);
+    });
   };
 
   const refreshBrains = async () => setBrainStatus(await api.brainStatus());
@@ -229,6 +303,15 @@ export default function App() {
 
         <SystemStatusBar project={project} status={brainStatus} />
 
+        {project?.controlMode === "manual" ? <ManualGuidedWorkspace
+          project={project}
+          activeView={activeView}
+          busy={busy}
+          onNavigate={setActiveView}
+          onAction={manualGuidedAction}
+          onSwitchAutomatic={switchToAutomatic}
+        /> : null}
+
         {error ? (
           <div className="error-banner"><CircleAlert size={16} /><span>{error}</span><button onClick={() => setError(undefined)}>Dismiss</button></div>
         ) : null}
@@ -236,7 +319,17 @@ export default function App() {
         <div className="workspace-content">
           {project ? (
             activeView === "agent" ? (
-              <AgentView
+              project.controlMode === "automatic" ? <AutomaticDirectorView
+                project={project}
+                busy={busy}
+                onAction={automaticAction}
+                onUploadAndCreateSheet={uploadAutomaticMainCharacter}
+                onCreateExistingSheet={(referenceId) => act(() => api.generateReferenceSheet(project.id, referenceId))}
+                onNavigate={setActiveView}
+                onDownloadProject={download}
+                onDownloadAssets={() => window.location.assign(api.assetExportUrl(project.id, "all"))}
+                onDownloadSequencePacks={() => window.location.assign(api.allSequenceReferencePackagesUrl(project.id, project.targetPlatform))}
+              /> : <AgentView
                 project={project}
                 mode={mode}
                 busy={busy}
@@ -318,6 +411,13 @@ export default function App() {
           )}
         </div>
       </main>
+
+      {resumeProject ? <ManualResumeDialog
+        project={resumeProject}
+        onResume={() => { setProject(resumeProject); setActiveView(manualStepView(resumeProject.manualProduction.currentStep)); setResumeProject(undefined); }}
+        onView={() => { setProject(resumeProject); setActiveView("overview"); setResumeProject(undefined); }}
+        onClose={() => setResumeProject(undefined)}
+      /> : null}
 
       <CreateProjectModal
         open={modalOpen}

@@ -36,6 +36,8 @@
     "icon:build": "node scripts/build-icon.mjs",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "test:automatic-e2e": "cross-env CONTINUITY_E2E=1 vitest run server/automatic-production-director.test.ts --reporter=verbose",
+    "test:manual-e2e": "cross-env CONTINUITY_MANUAL_E2E=1 vitest run server/manual-production-director.test.ts --reporter=verbose",
     "docs:check": "node scripts/check-doc-links.mjs",
     "demo:create": "tsx scripts/create-film-brain-demo.ts",
     "setup": "node scripts/install-cli.mjs"

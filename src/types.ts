@@ -11,6 +11,96 @@ export const PHASE_IDS = [
 
 export type PhaseId = (typeof PHASE_IDS)[number];
 export type RunMode = "full" | "phases";
+export type ProductionControlMode = "manual" | "automatic";
+
+export const MANUAL_GUIDED_STEP_IDS = [
+  "project_setup", "movie_dna", "movie_dna_board", "story", "film_bible", "characters",
+  "character_sheets", "asset_manifest", "asset_generation", "story_timeline", "continuity_ledger",
+  "audio_bible", "full_script", "dialogue", "shot_planner", "sequence_planner", "sequence_workspace", "export",
+] as const;
+export type ManualGuidedStepId = (typeof MANUAL_GUIDED_STEP_IDS)[number];
+export type ManualGuidedStatus = "ACTIVE" | "COMPLETE";
+
+export interface ManualGuidedRecommendation {
+  label: string;
+  value: string;
+  reason: string;
+}
+
+export interface ManualGuidedProductionState {
+  status: ManualGuidedStatus;
+  currentStep: ManualGuidedStepId;
+  completedSteps: ManualGuidedStepId[];
+  visitedSteps: ManualGuidedStepId[];
+  recommendations: ManualGuidedRecommendation[];
+  preferredPlatform?: TargetPlatform;
+  briefCompletedAt?: string;
+  recommendationCreatedAt?: string;
+  lastSavedAt: string;
+  updatedAt: string;
+}
+
+export const AUTOMATIC_PRODUCTION_STAGE_IDS = [
+  "project_setup",
+  "movie_dna",
+  "story",
+  "film_bible",
+  "characters",
+  "main_character",
+  "asset_manifest",
+  "asset_generation",
+  "timeline_continuity",
+  "audio_bible",
+  "full_script",
+  "shot_plans",
+  "sequences",
+  "prompts",
+  "reference_packs",
+] as const;
+export type AutomaticProductionStageId = (typeof AUTOMATIC_PRODUCTION_STAGE_IDS)[number];
+export type AutomaticProductionStatus =
+  | "IDLE"
+  | "RUNNING"
+  | "WAITING_FOR_MAIN_CHARACTER"
+  | "PAUSED"
+  | "STOPPED"
+  | "NEEDS_USER_REVIEW"
+  | "COMPLETE"
+  | "FAILED";
+export type AutomaticStageStatus = "PENDING" | "RUNNING" | "COMPLETE" | "WAITING" | "NEEDS_USER_REVIEW" | "FAILED";
+
+export interface AutomaticStageProgress {
+  id: AutomaticProductionStageId;
+  label: string;
+  status: AutomaticStageStatus;
+  attempts: number;
+  note?: string;
+  startedAt?: string;
+  completedAt?: string;
+}
+
+export interface AutomaticProductionDecision {
+  id: string;
+  stage: AutomaticProductionStageId;
+  action: string;
+  reason: string;
+  details?: Record<string, unknown>;
+  createdAt: string;
+}
+
+export interface AutomaticProductionState {
+  status: AutomaticProductionStatus;
+  currentStage?: AutomaticProductionStageId;
+  stages: AutomaticStageProgress[];
+  history: AutomaticProductionDecision[];
+  mainCharacterPreference?: string;
+  mainCharacterSource?: "UPLOAD" | "AI";
+  resumeAfterRestart: boolean;
+  lastError?: string;
+  startedAt?: string;
+  completedAt?: string;
+  updatedAt: string;
+}
 export type TargetPlatform = "Seedance" | "Higgsfield" | "MiniMax" | "Veo" | "Kling" | "Runway" | "Sora" | "Custom";
 export const APPROVAL_STATES = [
   "PLANNED",
@@ -120,6 +210,8 @@ export interface ProjectConfig {
   language: string;
   visualStyle: string;
   mode: RunMode;
+  controlMode?: ProductionControlMode;
+  mainCharacterPreference?: string;
   storyMode: "AI_FIRST" | "REFERENCE_FIRST" | "HYBRID";
   era: string;
   aspectRatio: string;
@@ -858,7 +950,22 @@ export interface ProductionSequencePlan {
   status: "PLANNED" | "READY" | "GENERATED" | "REJECTED" | "APPROVED" | "LOCKED";
   videoPath?: string;
   inspectionNotes: string[];
-  generationHistory: Array<{ id: string; status: string; reason?: string; videoPath?: string; createdAt: string }>;
+  generationHistory: Array<{
+    id: string;
+    status: string;
+    reason?: string;
+    corrections?: string[];
+    videoPath?: string;
+    importedFilename?: string;
+    platform?: TargetPlatform;
+    promptVersion?: number;
+    jsonVersion?: number;
+    referenceAssetIds?: string[];
+    attemptNumber?: number;
+    generationDate?: string;
+    durationSeconds?: number;
+    createdAt: string;
+  }>;
 }
 
 export interface PlatformProfile {
@@ -2450,6 +2557,7 @@ export type ArtifactMap = Partial<Record<PhaseId, unknown>>;
 export interface MovieProject extends ProjectConfig {
   schemaVersion: number;
   id: string;
+  controlMode: ProductionControlMode;
   status: ProjectStatus;
   currentPhase?: PhaseId;
   currentAgent?: string;
@@ -2461,6 +2569,8 @@ export interface MovieProject extends ProjectConfig {
   memory: ProjectMemory;
   preStorySetup: PreStorySetup;
   production: ProductionWorkflow;
+  automaticProduction: AutomaticProductionState;
+  manualProduction: ManualGuidedProductionState;
   createdAt: string;
   updatedAt: string;
 }
@@ -2468,13 +2578,14 @@ export interface MovieProject extends ProjectConfig {
 export type CreateProjectInput = Omit<ProjectConfig,
   "sequenceDurationSeconds" | "resolution" | "filmLanguage" | "dialogueLanguage" |
   "audienceRating" | "targetPlatform" | "narrationEnabled" | "dialogueEnabled" |
-  "musicEnabled" | "subtitlesEnabled"
+  "musicEnabled" | "subtitlesEnabled" | "controlMode"
 > & Partial<Pick<ProjectConfig,
   "sequenceDurationSeconds" | "resolution" | "filmLanguage" | "dialogueLanguage" |
   "audienceRating" | "targetPlatform" | "narrationEnabled" | "dialogueEnabled" |
-  "musicEnabled" | "subtitlesEnabled"
+  "musicEnabled" | "subtitlesEnabled" | "controlMode"
 >> & {
   brain?: BrainMode;
+  preferredPlatform?: TargetPlatform;
   mainCharacterReference?: ReferenceUploadInput;
 };
 

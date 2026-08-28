@@ -11,8 +11,11 @@ import { createProductionWorkflow } from "./production-workflow.js";
 import { normalizeStoryDevelopmentState } from "./story-brain.js";
 import { normalizeFilmBibleState } from "./film-bible.js";
 import { createProductionMemoryLayer, normalizeProductionMemoryLayer, rebuildProductionMemory } from "./production-memory.js";
+import { normalizePermanentAssetFilename } from "./asset-storage.js";
+import { createAutomaticProductionState } from "./automatic-production-state.js";
+import { createManualProductionState } from "./manual-production-state.js";
 
-export const CURRENT_PROJECT_SCHEMA_VERSION = 15;
+export const CURRENT_PROJECT_SCHEMA_VERSION = 18;
 
 export const createProjectMemory = (projectId = "UNASSIGNED", config: Partial<ProjectConfig> = {}): ProjectMemory => ({
   approvedAssets: [],
@@ -68,6 +71,33 @@ export const migrateProject = (
   }
   const project = source as Partial<MovieProject>;
   if (!project.movieTitle) { project.movieTitle = project.title || "Untitled Movie"; changed = true; }
+  if (!project.controlMode) { project.controlMode = "manual"; changed = true; }
+  if (!project.automaticProduction) {
+    project.automaticProduction = createAutomaticProductionState(project.controlMode === "automatic", project.mainCharacterPreference);
+    changed = true;
+  } else {
+    const normalizedAutomatic = createAutomaticProductionState(project.controlMode === "automatic", project.mainCharacterPreference);
+    const previousStages = new Map(project.automaticProduction.stages?.map((stage) => [stage.id, stage]));
+    project.automaticProduction = {
+      ...normalizedAutomatic,
+      ...project.automaticProduction,
+      stages: normalizedAutomatic.stages.map((stage) => ({ ...stage, ...previousStages.get(stage.id) })),
+      history: Array.isArray(project.automaticProduction.history) ? project.automaticProduction.history : [],
+    };
+  }
+  if (!project.manualProduction) {
+    project.manualProduction = createManualProductionState(project.controlMode === "manual");
+    changed = true;
+  } else {
+    const normalizedManual = createManualProductionState(project.controlMode === "manual", project.manualProduction.preferredPlatform);
+    project.manualProduction = {
+      ...normalizedManual,
+      ...project.manualProduction,
+      completedSteps: Array.isArray(project.manualProduction.completedSteps) ? project.manualProduction.completedSteps : [],
+      visitedSteps: Array.isArray(project.manualProduction.visitedSteps) ? project.manualProduction.visitedSteps : [],
+      recommendations: Array.isArray(project.manualProduction.recommendations) ? project.manualProduction.recommendations : [],
+    };
+  }
   if (!project.storyMode) { project.storyMode = "AI_FIRST"; changed = true; }
   if (!project.era) { project.era = "Contemporary"; changed = true; }
   if (!project.aspectRatio) { project.aspectRatio = "2.39:1"; changed = true; }
@@ -201,6 +231,10 @@ export const migrateProject = (
         record.outdatedReasons = [...new Set([...record.outdatedReasons, "filmmaking knowledge and Platform Profile v2 integrated"] )];
         record.state.status = "PROMPT_OUTDATED";
       }
+      if (fromVersion < 16) {
+        record.outdatedReasons = [...new Set([...record.outdatedReasons, "flat permanent asset storage and three-digit Project Image filenames integrated"] )];
+        record.state.status = "PROMPT_OUTDATED";
+      }
     }
     source.production.story = normalizeStoryDevelopmentState(source as MovieProject, source.production.story);
     source.production.filmBible = normalizeFilmBibleState(source as MovieProject, source.production.filmBible);
@@ -271,7 +305,12 @@ export const migrateProject = (
       if ((asset.category as string) === "audio") asset.category = "other";
       if (!asset.filename) {
         const token = asset.name.replace(/[^a-z0-9]+/gi, "_").replace(/^_+|_+$/g, "") || asset.id.replace(/[^a-z0-9]+/gi, "_");
-        asset.filename = `${String(asset.number).padStart(2, "0")}_${token}.png`;
+        asset.filename = normalizePermanentAssetFilename(asset.number, undefined, token);
+        changed = true;
+      }
+      const normalizedFilename = normalizePermanentAssetFilename(asset.number, asset.filename, asset.name);
+      if (asset.filename !== normalizedFilename) {
+        asset.filename = normalizedFilename;
         changed = true;
       }
       const entity = source.memory!.database.assets.find((item) => item.id === asset.id);
@@ -303,6 +342,14 @@ export const migrateProject = (
     if (!source.production.nextProjectImageNumber || source.production.nextProjectImageNumber < nextNumber) {
       source.production.nextProjectImageNumber = nextNumber;
       changed = true;
+    }
+    for (const grid of Object.values(source.production.storyboardGrids)) {
+      if (grid.projectImageNumber === undefined || !grid.permanentFilename) continue;
+      const normalizedFilename = normalizePermanentAssetFilename(grid.projectImageNumber, grid.permanentFilename, `Sequence_${String(grid.sequenceNumber).padStart(2, "0")}_Storyboard_Grid`);
+      if (grid.permanentFilename !== normalizedFilename) {
+        grid.permanentFilename = normalizedFilename;
+        changed = true;
+      }
     }
     source.memory!.productionMemory = normalizeProductionMemoryLayer(source as MovieProject, source.memory!.productionMemory);
     if (

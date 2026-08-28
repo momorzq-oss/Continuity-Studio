@@ -13,7 +13,7 @@ import type {
   ProductionAssetRecord,
 } from "../src/types.js";
 import type { ImageGenerationProvider } from "./image-generation/provider.js";
-import { lockedMovieDnaPrompt, resolveMovieDnaOption, updateMovieDna } from "./production-workflow.js";
+import { addCustomMovieDnaOption, lockedMovieDnaPrompt, resolveMovieDnaOption, updateMovieDna } from "./production-workflow.js";
 import type { ProjectStore } from "./store.js";
 
 const stamp = () => new Date().toISOString();
@@ -133,10 +133,33 @@ export class MovieDnaService {
       texture: [/documentary|realism/.test(normalized) ? "texture_naturalistic" : /dream|fantasy/.test(normalized) ? "texture_dreamlike" : "texture_clean"],
       aspectRatio: [MOVIE_DNA_CATALOG.find((entry) => entry.id === "aspectRatio")?.options.find((entry) => entry.name === project.aspectRatio)?.id ?? "aspect_185"],
     };
+    const signalWords = [...new Set(normalized.split(/[^a-z0-9]+/).filter((word) => word.length > 3 && !["movie", "film", "story", "cinematic", "style", "about", "make", "main", "character", "suitable", "production", "studio", "brain", "selection"].includes(word)))];
+    const storyDefined: Record<string, [string, string]> = {
+      historicalPeriod: ["Story-Defined Period", "Derive the precise period and technology rules from the approved story without imposing a regional or historical default."],
+      location: ["Story-Defined Global Location", "Derive the country, city, and region from the movie brief and approved story without imposing a default country."],
+      environment: ["Story-Defined Environment", "Derive geography, climate, weather, ground, and atmosphere from the movie brief and approved story without imposing a desert, city, or other default."],
+    };
     for (const category of MOVIE_DNA_CATALOG) {
       if (optionIds[category.id]?.length) continue;
-      const direct = category.options.find((entry) => normalized.includes(entry.name.toLowerCase()));
-      if (direct) optionIds[category.id] = [direct.id];
+      const ranked = category.options.map((entry) => {
+        const optionName = entry.name.toLowerCase();
+        const haystack = [entry.name, entry.group, entry.shortDescription, entry.promptDescription, ...entry.tags, ...entry.genreTags, ...entry.historicalTags].join(" ").toLowerCase();
+        const score = (normalized.includes(optionName) ? 12 : 0)
+          + signalWords.reduce((total, word) => total + (optionName.includes(word) || word.includes(optionName) ? 5 : haystack.includes(word) ? 1 : 0), 0);
+        return { entry, score };
+      }).sort((left, right) => right.score - left.score);
+      if ((ranked[0]?.score ?? 0) > 0) {
+        optionIds[category.id] = [ranked[0]!.entry.id];
+        continue;
+      }
+      const custom = storyDefined[category.id];
+      if (custom) {
+        addCustomMovieDnaOption(project, { categoryId: category.id, name: custom[0], description: custom[1], technicalValues: { source: "automatic_story_context", globalSelection: true } });
+        optionIds[category.id] = [...(project.production.movieDna.selections[category.id]?.optionIds ?? [])];
+        continue;
+      }
+      const fallback = category.options.find((entry) => entry.selectedByDefault) ?? category.options.find((entry) => entry.popular) ?? category.options[0];
+      if (fallback) optionIds[category.id] = [fallback.id];
     }
     const names = Object.entries(optionIds).map(([categoryId, ids]) => `${movieDnaCategory(categoryId)?.name}: ${ids.map((id) => movieDnaOption(categoryId, id)?.name).join(" ")}`);
     const recommendation: MovieDnaRecommendation = {
@@ -203,6 +226,11 @@ export class MovieDnaService {
     if (result.status === "GENERATED") {
       productionAsset.status = "REVIEW";
       productionAsset.referenceIds = [productionAsset.id];
+      productionAsset.imagePath = result.path;
+      productionAsset.thumbnailPath = result.thumbnailPath;
+      productionAsset.provider = result.provider;
+      productionAsset.model = result.model;
+      productionAsset.generationError = undefined;
     } else if (!master.path) productionAsset.status = "GENERATION_FAILED";
     await this.store.saveProject(project);
     return project;

@@ -217,6 +217,15 @@ export class ReferenceManager {
       asset.generationError = undefined;
       asset.version += 1;
       asset.updatedAt = timestamp;
+      const record = project.production.assets.find((item) => item.id === asset.id);
+      if (record) {
+        record.imagePath = undefined;
+        record.thumbnailPath = undefined;
+        record.status = "REGENERATE";
+        record.generationError = undefined;
+        record.version = asset.version;
+        record.updatedAt = timestamp;
+      }
       const sheet = project.memory.database.continuitySheets.find((item) => item.assetId === asset.id);
       if (sheet) {
         sheet.version += 1;
@@ -250,6 +259,15 @@ export class ReferenceManager {
       asset.approvalState = "PROMPT_READY";
       asset.generationError = undefined;
       asset.updatedAt = new Date().toISOString();
+      const record = project.production.assets.find((item) => item.id === asset.id);
+      if (record) {
+        record.imagePath = undefined;
+        record.thumbnailPath = undefined;
+        record.status = "PROMPT_READY";
+        record.generationError = undefined;
+        record.version = asset.version;
+        record.updatedAt = asset.updatedAt;
+      }
       database.continuitySheets = database.continuitySheets.filter((item) => item.assetId !== asset.id);
     }
     database.projectReferences = database.projectReferences.filter((item) => item.id !== reference.id);

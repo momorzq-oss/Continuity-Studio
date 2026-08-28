@@ -11,6 +11,8 @@ import { LocalLlmBrainProvider } from "./local-llm-provider.js";
 import type { BrainProvider } from "./provider.js";
 import { BrainRouter, BrainUnavailableError } from "./router.js";
 import { createProductionWorkflow } from "../production-workflow.js";
+import { createAutomaticProductionState } from "../automatic-production-state.js";
+import { createManualProductionState } from "../manual-production-state.js";
 
 const roots: string[] = [];
 
@@ -46,6 +48,7 @@ const project = (brain: MovieProject["brain"]["selected"]): MovieProject => ({
   language: "English",
   visualStyle: "Cinematic",
   mode: "full",
+  controlMode: "manual",
   storyMode: "AI_FIRST",
   era: "Contemporary",
   aspectRatio: "2.39:1",
@@ -71,6 +74,8 @@ const project = (brain: MovieProject["brain"]["selected"]): MovieProject => ({
   memory: createProjectMemory(),
   preStorySetup: { mode: "AI_FIRST", completed: true, sheetCreation: "AUTO", blockingIssues: [] },
   production: createProductionWorkflow({ title: "Router Test", idea: "A complete story idea long enough for project validation.", genre: "Drama", runtimeMinutes: 2, sequenceCount: 2, sequenceDurationSeconds: 60, language: "English", filmLanguage: "English", dialogueLanguage: "English", visualStyle: "Cinematic", mode: "full", storyMode: "AI_FIRST", era: "Contemporary", aspectRatio: "2.39:1", resolution: "4K UHD", audienceRating: "PG", targetPlatform: "Seedance", narrationEnabled: false, dialogueEnabled: true, musicEnabled: true, subtitlesEnabled: true, autoGenerateAssets: true, autoGenerateScenes: true, autoGenerateStoryboard: true }),
+  automaticProduction: createAutomaticProductionState(),
+  manualProduction: createManualProductionState(),
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
 });

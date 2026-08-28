@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased — Generated-video return and production completion
+
+- Added generated-video import with sequence, platform, prompt version, JSON version, reference set, attempt number, generation date, filename, and duration metadata.
+- Preserved rejection and approval decisions without overwriting the imported attempt record.
+- Added approval locks and automatic transfer of an approved sequence End State into the next sequence Start State and permanent Continuity Ledger.
+- Added the movie progress dashboard with sequence totals, readiness, warning, and missing-asset counts.
+- Expanded the export verification path to include generated videos, prompt JSON, continuity records, and production history.
+- Added the complete narrated-tutorial production: authentic application captures, scripts, chapter data, thumbnail, and deterministic renderer.
+- Fixed permanent flat-asset read races, regeneration of missing files, locked-dialogue voice attachment, and attempt metadata loss during review decisions.
+
 ## v1.1.0 — Visual production system and Sequence Workspace v3
 
 - Expanded Visual Movie DNA to 27 categories and 629 selectable options, including Global Location DNA, image-led comparisons, a Movie DNA Board, master-frame handling, version history, locks, and downstream invalidation.
