@@ -18,7 +18,7 @@ Personajes, criaturas, localizaciones y utilería reciben IDs estables, versione
 
 ## Secuencias, prompts y continuidad
 
-Sequence Planner organiza unidades temporales y Frame Planner conserva anclas. El compilador transforma un prompt canónico en formatos de plataforma sin cambiar el ID interno. En v1.0.0 Seedance, MiniMax e Higgsfield usan exportación manual; no son APIs directas. Continuity Inspector exige resolver o justificar los problemas bloqueantes.
+Sequence Planner organiza unidades temporales y Sequence Workspace v3 ofrece editores Normal/JSON sincronizados, versiones y numeración de referencias. En v1.1.0 Seedance, Higgsfield, MiniMax, Veo, Kling, Runway y Sora usan transferencia manual; no son APIs directas. Los problemas bloqueantes deben resolverse antes de exportar.
 
 ## Exportación y privacidad
 

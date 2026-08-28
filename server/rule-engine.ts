@@ -88,8 +88,8 @@ const assetGroup = (asset: AssetEntity) => {
   if (asset.category === "character") return "characters" as const;
   if (asset.category === "creature") return "creatures" as const;
   if (asset.category === "animal") return "animals" as const;
-  if (asset.category === "location" || asset.category === "interior") return "locations" as const;
-  if (asset.category === "wardrobe") return "wardrobes" as const;
+  if (["location", "building", "room", "interior"].includes(asset.category)) return "locations" as const;
+  if (["wardrobe", "costume"].includes(asset.category)) return "wardrobes" as const;
   return "props" as const;
 };
 
@@ -98,8 +98,14 @@ const assetPrefix: Record<AssetItem["type"], string> = {
   creature: "CREATURE",
   animal: "ANIMAL",
   location: "LOC",
+  building: "BUILDING",
+  room: "ROOM",
   prop: "PROP",
+  weapon: "WEAPON",
   wardrobe: "WARDROBE",
+  costume: "COSTUME",
+  accessory: "ACCESSORY",
+  object: "OBJECT",
   vehicle: "VEHICLE",
 };
 
@@ -323,26 +329,36 @@ export class FilmRuleEngine {
 
   private enforceStoryReferences(project: MovieProject, artifact: StoryArtifact) {
     const sourceId = project.preStorySetup.mainCharacterReferenceId;
-    if (!sourceId) return artifact;
     const database = this.ensure(project);
-    const source = database.projectReferences.find((item) => item.id === sourceId);
-    if (!source) return artifact;
-    const main = artifact.characters.find((item) => item.id === "CHAR_MAIN_001")
-      ?? artifact.characters.find((item) => item.name.trim().toLowerCase() === source.name.trim().toLowerCase())
-      ?? artifact.characters.find((item) => /protagonist|main/i.test(item.role))
-      ?? artifact.characters[0];
-    if (!main) throw new Error("The Story Agent did not return a protagonist for the required main character reference.");
-    main.id = "CHAR_MAIN_001";
-    main.name = source.name;
-    main.role = "Protagonist · required uploaded identity";
-    main.description = `${main.description} Visual identity is permanently anchored to ${source.id}; do not redesign or duplicate.`;
-    const supporting = artifact.characters.filter((item) => item !== main && item.id !== source.id && item.id !== "CHAR_MAIN_001" && item.name.trim().toLowerCase() !== source.name.trim().toLowerCase());
-    for (const character of supporting) {
-      if (/protagonist|main character/i.test(character.role)) character.role = "Supporting character · reconciled from duplicate lead proposal";
+    const source = sourceId ? database.projectReferences.find((item) => item.id === sourceId) : undefined;
+    if (source) {
+      const main = artifact.characters.find((item) => item.id === "CHAR_MAIN_001")
+        ?? artifact.characters.find((item) => item.name.trim().toLowerCase() === source.name.trim().toLowerCase())
+        ?? artifact.characters.find((item) => /protagonist|main/i.test(item.role))
+        ?? artifact.characters[0];
+      if (!main) throw new Error("The Story Agent did not return a protagonist for the required main character reference.");
+      main.id = "CHAR_MAIN_001";
+      main.name = source.name;
+      main.role = "Protagonist · required uploaded identity";
+      main.description = `${main.description} Visual identity is permanently anchored to ${source.id}; do not redesign or duplicate.`;
+      const supporting = artifact.characters.filter((item) => item !== main && item.id !== source.id && item.id !== "CHAR_MAIN_001" && item.name.trim().toLowerCase() !== source.name.trim().toLowerCase());
+      for (const character of supporting) {
+        if (/protagonist|main character/i.test(character.role)) character.role = "Supporting character · reconciled from duplicate lead proposal";
+      }
+      artifact.characters = [main, ...supporting];
+      const requirement = database.storyAssetRequirements.find((item) => item.sourceReferenceId === source.id);
+      if (requirement) { requirement.assetId = main.id; requirement.satisfied = true; }
     }
-    artifact.characters = [main, ...supporting];
-    const requirement = database.storyAssetRequirements.find((item) => item.sourceReferenceId === source.id);
-    if (requirement) { requirement.assetId = main.id; requirement.satisfied = true; }
+    for (const reference of database.projectReferences.filter((item) => item.type === "character" && item.id !== sourceId)) {
+      if (!artifact.characters.some((item) => item.id === reference.assetId || item.name.trim().toLowerCase() === reference.name.trim().toLowerCase())) {
+        artifact.characters.push({ id: reference.assetId ?? `CHAR_${safeId(reference.name)}_001`, name: reference.name, role: "Supporting character · uploaded identity", description: `Identity anchored to protected source ${reference.id}.`, relationships: [] });
+      }
+    }
+    for (const reference of database.projectReferences.filter((item) => ["location", "building", "room"].includes(item.type))) {
+      if (!artifact.locations.some((item) => item.id === reference.assetId || item.name.trim().toLowerCase() === reference.name.trim().toLowerCase())) {
+        artifact.locations.push({ id: reference.assetId ?? `LOC_${safeId(reference.name)}_001`, name: reference.name, description: `Geography and visual identity anchored to protected source ${reference.id}.` });
+      }
+    }
     return artifact;
   }
 
@@ -408,7 +424,7 @@ export class FilmRuleEngine {
         description: input.description,
         approvalState,
         version: input.version ?? existing?.version ?? 1,
-        referenceImages: input.referenceImages?.filter((item) => !item.startsWith("reference://")) ?? [],
+        referenceImages: unique([...(existing?.referenceImages ?? []), ...(input.referenceImages?.filter((item) => !item.startsWith("reference://")) ?? [])]),
         lockedTraits: input.lockedTraits ?? defaultLockedTraits(input),
         mutableTraits: input.mutableTraits ?? { storyState: "May change only through an approved story event" },
         currentState: input.currentState ?? { condition: "Established", visibility: "Available" },
@@ -425,12 +441,19 @@ export class FilmRuleEngine {
         sourceReferenceIds: existing?.sourceReferenceIds ?? [],
         generationJobIds: existing?.generationJobIds ?? [],
         sheetId: existing?.sheetId,
-        critical: ["character", "creature", "animal", "location"].includes(input.type),
+        critical: ["character", "creature", "animal", "location", "building", "room"].includes(input.type),
         createdAt: existing?.createdAt ?? timestamp,
         updatedAt: timestamp,
       };
       if (existing) Object.assign(existing, entity);
       else database.assets.push(entity);
+      const linkedReferences = database.projectReferences.filter((reference) => reference.assetId === id || reference.linkedAssetIds.includes(id));
+      for (const reference of linkedReferences) {
+        entity.sourceReferenceIds = unique([...entity.sourceReferenceIds, reference.id]);
+        entity.referenceImages = unique([reference.sourcePath, ...entity.referenceImages]);
+        reference.assetId = id;
+        reference.linkedAssetIds = unique([...reference.linkedAssetIds, id]);
+      }
       normalized.push(this.toArtifactAsset(entity));
     }
     this.syncAssetGroups(database);
@@ -446,17 +469,23 @@ export class FilmRuleEngine {
   registerSequences(project: MovieProject, artifact: SequencesArtifact) {
     const database = this.ensure(project);
     const keyAssets = database.assets.filter((asset) =>
-      ["character", "animal"].includes(asset.category) && asset.approvalState !== "REJECTED",
+      ["character", "animal"].includes(asset.category)
+      && (approvalRank[asset.approvalState] >= approvalRank.APPROVED || asset.id === "CHAR_MAIN_001"),
     );
     const sequences = (artifact.sequences ?? []).map((sequence, index) => {
+      const assignedReferences = database.projectReferences.filter((reference) => reference.sequenceIds.includes(sequence.id));
+      const assignedLocation = assignedReferences.find((reference) => ["location", "building", "room"].includes(reference.type))?.assetId;
+      const locationId = assignedLocation ?? sequence.locationId;
       const assetIds = unique([
         ...sequence.assetIds.filter((id) => database.assets.some((asset) => asset.id === id)),
         ...keyAssets.map((asset) => asset.id),
+        ...assignedReferences.map((reference) => reference.assetId).filter((id): id is string => Boolean(id)),
       ]);
-      const references = this.referenceManifest(database, assetIds, sequence.locationId);
+      const references = this.referenceManifest(database, assetIds, locationId);
       const previous = artifact.sequences[index - 1];
       const result: SequenceItem = {
         ...sequence,
+        locationId,
         assetIds,
         status: "ready",
         previousContinuitySource: previous ? `${previous.id}_END` : "PROJECT_OPENING_STATE",
@@ -751,7 +780,7 @@ export class FilmRuleEngine {
   }
 
   private toArtifactAsset(asset: AssetEntity): AssetItem {
-    const type = (["character", "animal", "creature", "location", "prop", "wardrobe", "vehicle"].includes(asset.category)
+    const type = (["character", "animal", "creature", "location", "building", "room", "prop", "weapon", "wardrobe", "costume", "accessory", "object", "vehicle"].includes(asset.category)
       ? asset.category
       : "prop") as AssetItem["type"];
     return {
@@ -775,6 +804,21 @@ export class FilmRuleEngine {
 
   private withRequiredStoryAssets(project: MovieProject, assets: AssetItem[]) {
     const result = [...assets];
+    for (const reference of project.memory.database.projectReferences) {
+      if (!reference.assetId || result.some((asset) => asset.id === reference.assetId)) continue;
+      const type = (["character", "animal", "creature", "location", "building", "room", "prop", "weapon", "wardrobe", "costume", "accessory", "object", "vehicle"].includes(reference.type)
+        ? reference.type
+        : "prop") as AssetItem["type"];
+      result.push({
+        id: reference.assetId,
+        name: reference.name,
+        type,
+        description: `Protected uploaded ${reference.type} reference${reference.label ? ` · ${reference.label}` : ""}.`,
+        locked: false,
+        continuityNotes: [`Primary source ${reference.id}`, "Never silently replace the uploaded visual identity"],
+        referenceImages: [reference.sourcePath],
+      });
+    }
     const protagonist = (project.artifacts.story as { characters?: Array<{ id: string; name: string }> } | undefined)?.characters?.find((item) => item.id.startsWith("CHAR_"));
     const rashidId = protagonist?.id ?? "CHAR_RASHID_001";
     if (/\bcamel\b/i.test(project.idea) && !result.some((asset) => asset.type === "animal" && /camel/i.test(`${asset.id} ${asset.name}`))) {
@@ -819,6 +863,7 @@ export class FilmRuleEngine {
   private referenceManifest(database: ProductionDatabase, assetIds: string[], locationId: string): ReferenceManifestItem[] {
     return unique([locationId, ...assetIds]).map((assetId, index) => {
       const asset = database.assets.find((item) => item.id === assetId);
+      const source = asset?.sourceReferenceIds.map((id) => database.projectReferences.find((item) => item.id === id)).filter((item): item is NonNullable<typeof item> => Boolean(item)).sort((a, b) => b.priority - a.priority)[0];
       const roles = asset?.category === "character" ? ["identity", "face", "body"]
         : asset?.category === "wardrobe" ? ["wardrobe", "accessories"]
           : asset?.category === "animal" ? ["animal identity", "anatomy", "saddle", "ropes", "blanket", "tack"]
@@ -826,13 +871,13 @@ export class FilmRuleEngine {
               : ["asset design", "state"];
       return {
         assetId,
-        referenceFile: asset?.referenceImages[0] ?? "",
+        referenceFile: asset?.generatedImagePath ?? source?.sourcePath ?? asset?.referenceImages[0] ?? "",
         roles,
-        priority: index + 1,
+        priority: source?.priority ?? Math.max(1, 500 - index),
         stateVersion: asset?.version ?? 1,
         approved: asset ? approvalRank[asset.approvalState] >= approvalRank.APPROVED : false,
       };
-    });
+    }).sort((a, b) => b.priority - a.priority);
   }
 
   private defaultFrame(sequence: SequenceItem, anchor: "START" | "MID" | "END"): FrameState {

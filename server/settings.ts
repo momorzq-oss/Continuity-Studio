@@ -36,6 +36,7 @@ export const defaultSettings = (): AppSettings => ({
   },
   openaiModel: process.env.OPENAI_MODEL?.trim() || "gpt-5.4-mini",
   trustedProjectWorkspace: true,
+  movieDnaPresets: [],
   updatedAt: new Date().toISOString(),
 });
 

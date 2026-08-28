@@ -25,18 +25,22 @@ Choose a title, idea, genre, period, aspect ratio, runtime, sequence count, prod
 
 Open **Reference Setup**, upload PNG/JPEG/WebP files, assign roles, and mark an optional photo **Main character source**. Complete setup. Originals are copied into the local project and never overwritten by generation.
 
-## 4. Run the production agent
+## 4. Lock Movie DNA and build Story v2
+
+Choose the 27 visual categories, review the Movie DNA Board and Master Frame, then lock the selected DNA version. Create Story v2 and review Full Story, Story Structure, Timeline, Character Arcs, and Sequence Breakdown before approval.
+
+## 5. Run the production agent
 
 Open **Production Agent**. In Full mode the agent runs Story → Film Bible → Assets → Sequences → Frames → Prompts → Continuity → Export. In Phases mode, review and approve each stage.
 
-## 5. Review visuals
+## 6. Review characters, script, and visuals
 
-Open **Assets** to generate/review/lock master images and sheets. Open **Scene Assets** for dependency-aware scene masters and anchors. Open **Storyboard** for separate shot-facing images.
+Open Character Analysis and Reference Manager to connect permanent identities and protected sources. Review Full Script v2 and exact dialogue. Open **Image Asset Library** to generate/review/lock master images and sheets. Open **Scene Assets** for dependency-aware scene masters and anchors. Open **Storyboard** for separate shot-facing images.
 
-## 6. Compile platform prompts
+## 7. Compile platform prompts
 
-Open **Prompts**, select Seedance, MiniMax, Higgsfield, or Generic, inspect temporary reference tags and blocking issues, edit the project model profile if needed, then export/copy the provider prompt manually.
+Open a sequence in **Sequence Workspace v3**. Select Seedance, Higgsfield, MiniMax, Veo, Kling, Runway, Sora, or Custom. Inspect the synchronized Normal/JSON prompts, temporary reference tags, upload order, profile limits, and blocking issues, then copy or export the prompt/reference package manually.
 
-## 7. Inspect and export
+## 8. Export
 
-Resolve blocking continuity issues, approve final records, then open **Export** to download the local project ZIP.
+Resolve blocking continuity issues, save the prompt version, and open **Export** to download the local project ZIP. Direct video generation and generated-video import are roadmap work in v1.1.0.

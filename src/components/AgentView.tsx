@@ -60,11 +60,19 @@ export function AgentView({
   onCancel,
   onResolveApproval,
 }: AgentViewProps) {
-  const [input, setInput] = useState(project.status === "draft" ? project.idea : "");
+  const promptPackageReady = project.production.gates.find((gate) => gate.stage === "platform_prompts")?.status === "APPROVED";
+  const initialDraft = project.status === "draft" && !promptPackageReady;
+  const [input, setInput] = useState(initialDraft ? project.idea : "");
   const logRef = useRef<HTMLDivElement>(null);
-  const completed = project.phases.filter((phase) => phase.state === "completed").length;
-  const progress = Math.round((completed / project.phases.length) * 100);
-  const current = project.phases.find(
+  const stageByPhase = { story: "story", film_bible: "film_bible", assets: "asset_manifest", sequences: "sequences", frame_plans: "asset_sheets", prompts: "platform_prompts", continuity: "video_review", export: "export" } as const;
+  const displayPhases = project.phases.map((phase) => {
+    const gate = project.production.gates.find((item) => item.stage === stageByPhase[phase.id]);
+    const state = gate?.status === "APPROVED" || gate?.status === "LOCKED" ? "completed" : gate?.status === "REVIEW" ? "awaiting_approval" : phase.state;
+    return { ...phase, state, summary: gate?.note ?? phase.summary };
+  });
+  const completed = displayPhases.filter((phase) => phase.state === "completed").length;
+  const progress = Math.round((completed / displayPhases.length) * 100);
+  const current = displayPhases.find(
     (phase) => phase.state === "running" || phase.state === "awaiting_approval" || phase.state === "failed",
   );
   const approvals = status?.approvals.filter((approval) => approval.projectId === project.id) ?? [];
@@ -75,8 +83,9 @@ export function AgentView({
   }, [project.messages.length]);
 
   useEffect(() => {
-    if (project.status === "draft") setInput(project.idea);
-  }, [project.id, project.idea, project.status]);
+    if (project.status === "draft" && !promptPackageReady) setInput(project.idea);
+    else if (promptPackageReady) setInput("");
+  }, [project.id, project.idea, project.status, promptPackageReady]);
 
   const submit = async (event: FormEvent) => {
     event.preventDefault();
@@ -91,11 +100,11 @@ export function AgentView({
       <section className="pipeline-panel">
         <div className="section-heading">
           <div><span className="eyebrow">Agent pipeline</span><h2>Production stages</h2></div>
-          <span className="mono-muted">{completed}/{project.phases.length}</span>
+          <span className="mono-muted">{completed}/{displayPhases.length}</span>
         </div>
         <div className="pipeline-progress"><i style={{ width: `${progress}%` }} /></div>
         <div className="phase-list">
-          {project.phases.map((phase, index) => (
+          {displayPhases.map((phase, index) => (
             <div className={`phase-row ${phase.state}`} key={phase.id}>
               <div className="phase-index">{phaseIcon(phase) || String(index + 1).padStart(2, "0")}</div>
               <div className="phase-copy">
@@ -141,7 +150,7 @@ export function AgentView({
 
         <form className="agent-composer" onSubmit={submit}>
           <label htmlFor="agent-input">
-            {project.status === "draft" ? "Tell the agent what to create" : "Give the production agent an instruction"}
+            {initialDraft ? "Tell the agent what to create" : "Give the production agent an instruction"}
           </label>
           <textarea
             id="agent-input"
@@ -157,8 +166,8 @@ export function AgentView({
           <div className="composer-footer">
             <span><Sparkles size={13} /> Commands: create · approve · regenerate story/assets/sequences</span>
             <button className="button primary" type="submit" disabled={busy || !input.trim()}>
-              {project.status === "draft" ? <Play size={14} /> : <Send size={14} />}
-              {project.status === "draft" ? "Start production" : "Send instruction"}
+              {initialDraft ? <Play size={14} /> : <Send size={14} />}
+              {initialDraft ? "Start production" : "Send instruction"}
             </button>
           </div>
         </form>
@@ -211,8 +220,8 @@ export function AgentView({
 
         <section className="inspector-card current-task-card">
           <div className="eyebrow">Current task</div>
-          <h3>{current?.label ?? (project.status === "complete" ? "Production complete" : "Ready to begin")}</h3>
-          <p>{current?.summary ?? current?.description ?? "Enter the movie idea and start the agent."}</p>
+          <h3>{current?.label ?? (project.status === "complete" ? "Production complete" : promptPackageReady ? "Manual generation ready" : "Ready to begin")}</h3>
+          <p>{current?.summary ?? current?.description ?? (promptPackageReady ? "Open Sequences to download references, copy the compiled platform prompt, generate externally, and upload the video for continuity review." : "Enter the movie idea and start the agent.")}</p>
           {current?.attempt ? <span className="attempt">Attempt {current.attempt}</span> : null}
         </section>
 

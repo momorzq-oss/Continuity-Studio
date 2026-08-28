@@ -5,6 +5,7 @@ export interface ImageGenerationInput {
   width: number;
   height: number;
   referencePaths: string[];
+  referenceImages: Array<{ data: Buffer; filename: string; mimeType: string }>;
   label: string;
   kind: string;
 }

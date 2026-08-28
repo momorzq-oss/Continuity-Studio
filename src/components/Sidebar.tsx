@@ -24,17 +24,24 @@ import {
   Clapperboard,
   UploadCloud,
   Info,
+  Clock3,
+  AudioLines,
 } from "lucide-react";
 import type { MovieProject, ProjectListItem } from "../types";
 
 export type ViewId =
   | "agent"
+  | "project_setup"
+  | "movie_dna"
   | "reference_setup"
   | "references"
   | "overview"
   | "story"
+  | "full_script"
+  | "timeline"
   | "film_bible"
   | "assets"
+  | "asset_manifest"
   | "characters"
   | "creatures"
   | "locations"
@@ -45,6 +52,7 @@ export type ViewId =
   | "storyboard"
   | "prompts"
   | "continuity"
+  | "audio_bible"
   | "rules"
   | "generations"
   | "review"
@@ -59,13 +67,18 @@ const navigation: Array<{
   icon: typeof Bot;
 }> = [
   { id: "agent", label: "Production Agent", icon: Bot },
-  { id: "reference_setup", label: "Reference Setup", icon: UploadCloud },
-  { id: "references", label: "Reference Library", icon: Images },
   { id: "overview", label: "Overview", icon: LayoutDashboard },
+  { id: "project_setup", label: "Project Setup", icon: Settings },
+  { id: "movie_dna", label: "Movie DNA", icon: Aperture },
   { id: "story", label: "Story", icon: BookOpen },
+  { id: "full_script", label: "Full Script", icon: FileCode2 },
+  { id: "timeline", label: "Story Timeline", icon: Clock3 },
   { id: "film_bible", label: "Film Bible", icon: ScrollText },
-  { id: "assets", label: "Assets", icon: Layers3 },
   { id: "characters", label: "Characters", icon: PersonStanding },
+  { id: "reference_setup", label: "Character Reference Setup", icon: UploadCloud },
+  { id: "references", label: "Reference Manager", icon: Images },
+  { id: "asset_manifest", label: "Asset Manifest", icon: ClipboardCheck },
+  { id: "assets", label: "Image Asset Library", icon: Layers3 },
   { id: "creatures", label: "Creatures", icon: Bug },
   { id: "locations", label: "Locations", icon: MapPinned },
   { id: "props", label: "Props", icon: Boxes },
@@ -75,6 +88,7 @@ const navigation: Array<{
   { id: "storyboard", label: "Storyboard", icon: Images },
   { id: "prompts", label: "Prompts", icon: FileCode2 },
   { id: "continuity", label: "Continuity", icon: ScanLine },
+  { id: "audio_bible", label: "Audio Bible", icon: AudioLines },
   { id: "rules", label: "Rules", icon: ClipboardCheck },
   { id: "generations", label: "Generations", icon: WandSparkles },
   { id: "review", label: "Review", icon: ScanLine },
@@ -101,8 +115,9 @@ export function Sidebar({
   onProjectChange,
   onNewProject,
 }: SidebarProps) {
-  const completed = project?.phases.filter((phase) => phase.state === "completed").length ?? 0;
-  const progress = project ? Math.round((completed / project.phases.length) * 100) : 0;
+  const progressStages = ["project_setup", "movie_dna", "story", "film_bible", "characters", "asset_manifest", "sequences", "platform_prompts", "video_review", "export"];
+  const completed = project?.production.gates.filter((gate) => progressStages.includes(gate.stage) && ["APPROVED", "LOCKED"].includes(gate.status)).length ?? 0;
+  const progress = project ? (project.status === "complete" ? 100 : Math.round((completed / progressStages.length) * 100)) : 0;
   const artifactCount = project ? Object.keys(project.artifacts).length : 0;
 
   return (
@@ -142,11 +157,17 @@ export function Sidebar({
         {navigation.map((item) => {
           const Icon = item.icon;
           const badge =
-            item.id === "story" ? (project?.artifacts.story ? "READY" : undefined) :
+            item.id === "story" ? project?.production.story.status :
+            item.id === "full_script" ? project?.memory.productionMemory.script.status :
+            item.id === "project_setup" ? project?.production.gates.find((gate) => gate.stage === "project_setup")?.status :
+            item.id === "movie_dna" ? project?.production.movieDna.status :
+            item.id === "asset_manifest" ? project?.production.gates.find((gate) => gate.stage === "asset_manifest")?.status :
             item.id === "reference_setup" ? (project?.preStorySetup.completed ? "READY" : "SETUP") :
             item.id === "assets" ? (project?.artifacts.assets ? "READY" : undefined) :
             item.id === "sequences" ? (project?.artifacts.sequences ? "READY" : undefined) :
             item.id === "continuity" ? (project?.artifacts.continuity ? "CHECK" : undefined) :
+            item.id === "timeline" ? (project?.memory.productionMemory.storyTimeline.status === "READY" ? "READY" : project?.memory.productionMemory.storyTimeline.status) :
+            item.id === "audio_bible" ? project?.memory.productionMemory.audioBible.status :
             item.id === "export" ? (project?.status === "complete" ? "READY" : undefined) :
             item.id === "settings" ? project?.brain.selected.toUpperCase() :
             item.id === "agent" ? (project?.status === "running" ? "LIVE" : undefined) : undefined;

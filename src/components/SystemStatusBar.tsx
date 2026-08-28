@@ -4,8 +4,9 @@ import type { BrainStatusSnapshot, MovieProject } from "../types";
 const stateClass = (state?: string) => state?.replaceAll("_", "-") ?? "disconnected";
 
 export function SystemStatusBar({ project, status }: { project?: MovieProject; status?: BrainStatusSnapshot }) {
-  const completed = project?.phases.filter((phase) => phase.state === "completed").length ?? 0;
-  const progress = project ? Math.round((completed / project.phases.length) * 100) : 0;
+  const progressStages = ["project_setup", "movie_dna", "story", "film_bible", "characters", "asset_manifest", "sequences", "platform_prompts", "video_review", "export"];
+  const completed = project?.production.gates.filter((gate) => progressStages.includes(gate.stage) && ["APPROVED", "LOCKED"].includes(gate.status)).length ?? 0;
+  const progress = project ? (project.status === "complete" ? 100 : Math.round((completed / progressStages.length) * 100)) : 0;
   const current = project?.phases.find((phase) => phase.state === "running" || phase.state === "awaiting_approval" || phase.state === "failed");
   const brain = project?.brain.selected ?? status?.defaultBrain ?? "hybrid";
   const model = brain === "codex"

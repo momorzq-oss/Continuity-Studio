@@ -6,7 +6,7 @@
 - npm 10+。
 - 从 GitHub 克隆时需要 Git。
 - Windows 10/11 x64 可构建和运行桌面包。
-- v1.0.0 不要求 Python、FFmpeg 或外部数据库。
+- v1.1.0 不要求 Python、FFmpeg 或外部数据库。
 
 ## 交互式 CLI 安装
 
@@ -46,7 +46,7 @@ npm run setup -- --help
 
 ## Windows 安装包
 
-可以从 GitHub Releases 下载 NSIS 安装程序或 portable 便携版。公开的 v1.0.0 文件没有商业代码签名；Windows 可能要求你确认未知发布者。仅从官方 GitHub 仓库下载并校验 Release 信息。
+可以从 GitHub Releases 下载 NSIS 安装程序或 portable 便携版。公开的 v1.1.0 文件没有商业代码签名；Windows 可能要求你确认未知发布者。仅从官方 GitHub 仓库下载并校验 Release 信息。
 
 从源码构建 Windows 包：
 
@@ -54,8 +54,8 @@ npm run setup -- --help
 npm run desktop:package
 ```
 
-输出位于 `release/windows-v1.0.0/`，该目录不会提交到 Git。
+输出位于 `release/windows-v1.1.0/`，该目录不会提交到 Git。
 
 ## 可选配置
 
-复制 `.env.example` 为 `.env`。`OPENAI_API_KEY` 只用于可选 OpenAI 文本提供方；仅当本地模型服务器要求认证时才需要 `LOCAL_LLM_API_KEY`。MiniMax、Seedance 和 Higgsfield 的变量为未来直接适配器预留，v1.0.0 不会使用它们调用 API。
+复制 `.env.example` 为 `.env`。`OPENAI_API_KEY` 只用于可选 OpenAI 文本提供方；仅当本地模型服务器要求认证时才需要 `LOCAL_LLM_API_KEY`。v1.1.0 的视频 Platform Profiles 用于手动交接，不会直接调用视频提供方 API。

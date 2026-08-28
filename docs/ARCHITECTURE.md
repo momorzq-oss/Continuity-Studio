@@ -57,7 +57,7 @@ Hybrid phase routing lives only in `server/brains/routing-policy.ts`. The balanc
 
 ## Project persistence and memory
 
-`ProjectStore` retains `data/projects/<project-id>/` in development and uses `Documents\Continuity Studio\Projects\<project-id>` when installed. Writes are queued and atomic. Schema version 4 includes:
+`ProjectStore` retains `data/projects/<project-id>/` in development and uses `Documents\Continuity Studio\Projects\<project-id>` when installed. Writes are queued and atomic. Current project schema version 15 includes:
 
 - selected brain and provider health;
 - Codex thread/turn references and model;
@@ -69,6 +69,7 @@ Hybrid phase routing lives only in `server/brains/routing-policy.ts`. The balanc
 - protected project references, analysis metadata, story requirements, lineage, and continuity sheets;
 - image job records, real result/thumbnail paths, scenes, storyboards, and dependency edges;
 - editable model profiles, canonical prompts, provider-reference mappings, exclusions, and blocking compiler issues.
+- Visual Movie DNA versions, the global location image record, filmmaking knowledge sources, Story v2 state, Full Script v2 records, optional Storyboard Grids, and Sequence Workspace prompt state/version/reference manifests.
 
 Older projects migrate when opened. `project.json` is copied to a timestamped `project.json.backup-v<version>-<time>` before replacement.
 
@@ -85,6 +86,10 @@ Each sequence stores separate START, MID, and END frame objects containing descr
 Scene assets depend on real asset/reference images and store master, START, MID, and END files. Storyboard frames are separate derivative entities. Every job, source, version, and dependency remains inspectable in project JSON.
 
 `PlatformPromptCompiler` builds one canonical representation before provider formatting. `ReferenceTaggingEngine` assigns upload positions and provider tags from editable profiles while preserving stable internal IDs. When a limit would remove identity or another critical reference, the compiler returns a blocking issue and an explicit excluded-reference record.
+
+`server/sequence-workspace.ts` composes the current sequence from locked Movie DNA, approved Story/Film Bible, Full Script, character states, shots, dialogue, audio, continuity, optional Storyboard Grid, filmmaking knowledge, and asset references. One canonical `SequencePromptState` renders both editable Normal and JSON prompts. Manual overrides, validation, selected platform, prompt versions, and reference manifests persist under `platform_prompts/`.
+
+Provider-specific duration, reference, audio, syntax, and formatting rules belong to versioned Platform Profiles. The v1.1.0 profiles support manual handoff for Seedance, Higgsfield, MiniMax, Veo, Kling, Runway, Sora, and Custom; no direct provider video adapter is registered.
 
 ## Tools and logs
 

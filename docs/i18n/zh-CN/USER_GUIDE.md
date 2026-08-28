@@ -32,7 +32,7 @@ Sequence Planner 组织时间单元，Frame Planner 保存开始、中间和结�
 
 系统先建立与平台无关的 Canonical Prompt，再按照模型配置编译。永久 ID 与临时标签分离。例如 `CHAR_MAIN_001` 可以在一次请求中映射为 `@Image 1`，下一次请求仍保留同一内部身份。
 
-OpenAI 文本和 Codex 监督可直接工作。Seedance、MiniMax 和 Higgsfield 在 v1.0.0 中是提示词与参考导出工作流，不是直接生成 API。
+OpenAI 文本和 Codex 监督可按配置工作。Sequence Workspace v3 提供同步 Normal/JSON 提示词、版本和参考图编号。Seedance、Higgsfield、MiniMax、Veo、Kling、Runway 和 Sora 在 v1.1.0 中是手动提示词与参考包交接，不是直接生成 API。
 
 ## 8. 导出与隐私
 

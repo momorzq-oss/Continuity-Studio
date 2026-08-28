@@ -11,6 +11,7 @@ export const PHASE_IDS = [
 
 export type PhaseId = (typeof PHASE_IDS)[number];
 export type RunMode = "full" | "phases";
+export type TargetPlatform = "Seedance" | "Higgsfield" | "MiniMax" | "Veo" | "Kling" | "Runway" | "Sora" | "Custom";
 export const APPROVAL_STATES = [
   "PLANNED",
   "PROMPT_READY",
@@ -111,6 +112,7 @@ export interface AgentMessage {
 
 export interface ProjectConfig {
   title: string;
+  movieTitle?: string;
   idea: string;
   genre: string;
   runtimeMinutes: number;
@@ -121,9 +123,1488 @@ export interface ProjectConfig {
   storyMode: "AI_FIRST" | "REFERENCE_FIRST" | "HYBRID";
   era: string;
   aspectRatio: string;
+  sequenceDurationSeconds: number;
+  resolution: string;
+  filmLanguage: string;
+  dialogueLanguage: string;
+  audienceRating: string;
+  targetPlatform: TargetPlatform;
+  narrationEnabled: boolean;
+  dialogueEnabled: boolean;
+  musicEnabled: boolean;
+  subtitlesEnabled: boolean;
   autoGenerateAssets: boolean;
   autoGenerateScenes: boolean;
   autoGenerateStoryboard: boolean;
+}
+
+export interface ProjectSetupPatch {
+  title?: string;
+  movieTitle?: string;
+  idea?: string;
+  runtimeMinutes?: number;
+  sequenceDurationSeconds?: number;
+  aspectRatio?: string;
+  resolution?: string;
+  filmLanguage?: string;
+  dialogueLanguage?: string;
+  genre?: string;
+  era?: string;
+  audienceRating?: string;
+  targetPlatform?: TargetPlatform;
+  narrationEnabled?: boolean;
+  dialogueEnabled?: boolean;
+  musicEnabled?: boolean;
+  subtitlesEnabled?: boolean;
+}
+
+export type ChangeSourceType = "movie_dna" | "story" | "film_bible" | "character" | "asset" | "script" | "dialogue" | "sequence" | "continuity" | "audio_bible";
+
+export interface ChangeImpactItem {
+  kind: "movie_dna" | "story" | "film_bible" | "character" | "character_state" | "asset" | "location" | "prop" | "script" | "dialogue" | "shot" | "sequence" | "prompt" | "continuity" | "reference_pack" | "audio_bible";
+  id: string;
+  label: string;
+  reason: string;
+  protection: "NONE" | "APPROVED" | "LOCKED";
+}
+
+export interface ChangeImpactReport {
+  sourceType: ChangeSourceType;
+  sourceId?: string;
+  summary: string;
+  requiresReview: boolean;
+  lockedCount: number;
+  approvedCount: number;
+  items: ChangeImpactItem[];
+}
+
+export const PRODUCTION_STAGES = [
+  "project_setup",
+  "movie_dna",
+  "story",
+  "film_bible",
+  "characters",
+  "character_references",
+  "asset_manifest",
+  "asset_sheets",
+  "sequences",
+  "continuity",
+  "platform_prompts",
+  "manual_generation",
+  "video_review",
+  "export",
+] as const;
+export type ProductionStage = (typeof PRODUCTION_STAGES)[number];
+export type WorkflowGateStatus = "LOCKED" | "APPROVED" | "READY" | "REVIEW" | "DRAFT" | "BLOCKED" | "PENDING";
+
+export interface WorkflowGate {
+  stage: ProductionStage;
+  status: WorkflowGateStatus;
+  updatedAt: string;
+  note?: string;
+}
+
+export interface MovieDnaSelection {
+  id?: string;
+  key: string;
+  label: string;
+  technicalDescription: string;
+  optionIds?: string[];
+  selectedPreviewId?: string;
+  previewPath?: string;
+  technicalValues?: Record<string, string | number | boolean>;
+  promptDescription?: string;
+  locked?: boolean;
+  createdVersion?: number;
+  modifiedAt?: string;
+  modificationHistory?: Array<{
+    version: number;
+    optionIds: string[];
+    label: string;
+    previewPath?: string;
+    createdAt: string;
+  }>;
+  visualIndex?: number;
+  contactSheet?: "genre" | "look" | "camera";
+}
+
+export interface MovieDnaCustomOption {
+  id: string;
+  name: string;
+  category: string;
+  group: string;
+  shortDescription: string;
+  technicalDescription: string;
+  promptDescription: string;
+  previewGenerationPrompt: string;
+  technicalValues: Record<string, string | number | boolean>;
+  tags: string[];
+  compatibilityTags: string[];
+  historicalTags: string[];
+  genreTags: string[];
+  source: "custom";
+  status: "active" | "archived";
+  popular: boolean;
+  sheet: "genre" | "look" | "camera";
+  visualIndex: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MovieDnaUserPreset {
+  id: string;
+  name: string;
+  description: string;
+  selections: Record<string, string[]>;
+  customOptions: Record<string, MovieDnaCustomOption[]>;
+  createdAt: string;
+  updatedAt: string;
+  useCount: number;
+}
+
+export type MovieDnaGenerationStatus = "NOT_GENERATED" | "QUEUED" | "GENERATING" | "GENERATED" | "FAILED";
+
+export interface MovieDnaPreviewAsset {
+  id: string;
+  categoryId: string;
+  optionId: string;
+  status: MovieDnaGenerationStatus;
+  version: number;
+  prompt: string;
+  provider?: string;
+  model?: string;
+  path?: string;
+  thumbnailPath?: string;
+  error?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MovieDnaRecommendation {
+  id: string;
+  idea: string;
+  summary: string;
+  optionIds: Record<string, string[]>;
+  combinedPreviewId?: string;
+  createdAt: string;
+  acceptedAt?: string;
+}
+
+export interface MovieDnaMasterFrame {
+  id: string;
+  assetId: string;
+  projectNumber: number;
+  filename: string;
+  referenceRole: "STYLE";
+  status: MovieDnaGenerationStatus;
+  version: number;
+  prompt: string;
+  provider?: string;
+  model?: string;
+  path?: string;
+  thumbnailPath?: string;
+  error?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface MovieDnaVersion {
+  version: number;
+  selections: Record<string, MovieDnaSelection>;
+  negativeRules: string[];
+  createdAt: string;
+  lockedAt?: string;
+}
+
+export interface MovieDnaState {
+  status: "DRAFT" | "LOCKED";
+  version: number;
+  revisionScope?: "FUTURE_ONLY" | "REBUILD_EXISTING";
+  selections: Record<string, MovieDnaSelection>;
+  negativeRules: string[];
+  previews: Record<string, MovieDnaPreviewAsset>;
+  customOptions: Record<string, MovieDnaCustomOption[]>;
+  comparisonOptionIds: string[];
+  recentOptionIds: string[];
+  genreOptionIds: string[];
+  combinedGenrePreviewId?: string;
+  recommendation?: MovieDnaRecommendation;
+  masterFrame?: MovieDnaMasterFrame;
+  masterFrameReferenceId?: string;
+  lockedAt?: string;
+  history: MovieDnaVersion[];
+}
+
+export const STORY_SECTION_IDS = ["opening", "beginning", "development", "middle", "escalation", "climax", "ending"] as const;
+export type StorySectionId = (typeof STORY_SECTION_IDS)[number];
+export type StoryStatus = "DRAFT" | "GENERATED" | "EDITED" | "REVIEW" | "APPROVED" | "LOCKED" | "CHANGED_AFTER_PRODUCTION";
+export type StoryChangeSource = "AI" | "MANUAL" | "PASTE" | "REGENERATE";
+
+export interface StorySection {
+  id: StorySectionId;
+  title: string;
+  content: string;
+  order: number;
+  approximateStartSeconds: number;
+  approximateEndSeconds: number;
+}
+
+export interface StoryBeat {
+  id: string;
+  name: string;
+  description: string;
+  storyPurpose: string;
+  approximateTimeSeconds: number;
+  sectionId: StorySectionId;
+  characterIds: string[];
+  locationIds: string[];
+  importantAssetIds: string[];
+  emotion: string;
+  conflict: string;
+  eventIds: string[];
+  relatedSequenceIds: string[];
+}
+
+export interface StoryTimelineEvent {
+  id: string;
+  approximateTimeSeconds: number;
+  date: string;
+  time: string;
+  timeOfDay: string;
+  weather: string;
+  locationId: string;
+  characterIds: string[];
+  characterKnowledge: Record<string, string>;
+  relationshipState: Record<string, string>;
+  events: string[];
+  objectsAcquired: string[];
+  objectsLost: string[];
+  injuries: string[];
+  damage: string[];
+  environmentChanges: string[];
+  relatedSequenceIds: string[];
+}
+
+export interface StoryCharacterCandidate {
+  id: string;
+  name: string;
+  role: string;
+  importance: "MAIN" | "SUPPORTING" | "BACKGROUND";
+  description: string;
+  ageRange?: string;
+  goal: string;
+  motivation: string;
+  conflict: string;
+  fear: string;
+  relationships: string[];
+  relatedBeatIds: string[];
+  relatedSequenceIds: string[];
+  suggestedStates: string[];
+  referencePriority: "REQUIRED" | "HIGH" | "NORMAL";
+}
+
+export interface StoryCharacterArc {
+  characterId: string;
+  name: string;
+  role: string;
+  startingEmotionalState: string;
+  goal: string;
+  motivation: string;
+  conflict: string;
+  fear: string;
+  relationships: string[];
+  majorDecisions: string[];
+  majorChanges: string[];
+  endingState: string;
+  relatedBeatIds: string[];
+  relatedSequenceIds: string[];
+}
+
+export interface StoryLocationCandidate {
+  id: string;
+  name: string;
+  description: string;
+  historicalRequirements: string[];
+  relatedBeatIds: string[];
+  relatedSequenceIds: string[];
+}
+
+export interface StoryAssetCandidate {
+  id: string;
+  name: string;
+  category: "character" | "creature" | "animal" | "location" | "set" | "prop" | "vehicle" | "weapon" | "costume" | "object" | "vfx" | "environment";
+  description: string;
+  importance: "CRITICAL" | "SUPPORTING" | "ATMOSPHERIC";
+  referencePriority: "REQUIRED" | "HIGH" | "NORMAL" | "OPTIONAL";
+  relatedBeatIds: string[];
+  relatedSequenceIds: string[];
+}
+
+export interface StoryEvent {
+  id: string;
+  name: string;
+  description: string;
+  sectionId: StorySectionId;
+  approximateTimeSeconds: number;
+  characterIds: string[];
+  locationIds: string[];
+  objectIds: string[];
+}
+
+export interface StorySequenceBreakdownEntry {
+  id: string;
+  sequenceNumber: number;
+  timeRange: string;
+  startSeconds: number;
+  endSeconds: number;
+  storyPurpose: string;
+  events: string[];
+  characterIds: string[];
+  locationId: string;
+  emotion: string;
+  conflict: string;
+  importantAssetIds: string[];
+  requiredEndingCondition: string;
+  relatedBeatIds: string[];
+}
+
+export interface StoryGenerationContext {
+  projectSettings: {
+    movieTitle: string;
+    runtimeMinutes: number;
+    sequenceDurationSeconds: number;
+    sequenceCount: number;
+    genreCombination: string;
+    historicalPeriod: string;
+    filmLanguage: string;
+    dialogueLanguage: string;
+    audienceRating: string;
+    narrationEnabled: boolean;
+    dialogueEnabled: boolean;
+    musicEnabled: boolean;
+    subtitlesEnabled: boolean;
+  };
+  movieDna: {
+    version: number;
+    locked: true;
+    selections: Record<string, { label: string; promptDescription: string; technicalValues: Record<string, string | number | boolean> }>;
+    masterFrameReferenceId?: string;
+    tonalDirection: string;
+  };
+  requestedAt: string;
+}
+
+export interface StoryVersionRecord {
+  version: number;
+  storyId: string;
+  title: string;
+  premise: string;
+  logline: string;
+  summary: string;
+  content: string;
+  sections: StorySection[];
+  beats: StoryBeat[];
+  timeline: StoryTimelineEvent[];
+  characters: StoryCharacterCandidate[];
+  characterArcs: StoryCharacterArc[];
+  locations: StoryLocationCandidate[];
+  objects: StoryAssetCandidate[];
+  events: StoryEvent[];
+  sequenceBreakdown: StorySequenceBreakdownEntry[];
+  status: StoryStatus;
+  changeSource: StoryChangeSource;
+  instruction?: string;
+  affectedSectionIds: StorySectionId[];
+  movieDnaVersionUsed?: number;
+  approved: boolean;
+  locked: boolean;
+  createdAt: string;
+}
+
+export interface StoryAiProposal {
+  id: string;
+  instruction: string;
+  createdAt: string;
+  variant: number;
+  changes: Array<{ sectionId: StorySectionId; currentText: string; proposedText: string }>;
+  affectedSectionIds: StorySectionId[];
+  affectedBeatIds: string[];
+  affectedCharacterIds: string[];
+  affectedSequenceIds: string[];
+  impactLevel: "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+}
+
+export interface StoryImpactDecision {
+  id: string;
+  proposalId?: string;
+  action: "APPLY" | "FUTURE_ONLY" | "CANCEL";
+  affectedItemIds: string[];
+  createdAt: string;
+}
+
+export interface StoryDownstreamContracts {
+  filmBible: {
+    approvedStoryVersion?: number;
+    movieDnaVersion: number;
+    projectSettings: StoryGenerationContext["projectSettings"];
+    characterCandidates: StoryCharacterCandidate[];
+    locations: StoryLocationCandidate[];
+    objects: StoryAssetCandidate[];
+    worldRules: string[];
+    timeline: StoryTimelineEvent[];
+    historicalConstraints: string[];
+    narrativeRules: string[];
+  };
+  characterAnalysis: { storyVersion: number; candidates: StoryCharacterCandidate[] };
+  assetAnalysis: { storyVersion: number; candidates: StoryAssetCandidate[] };
+  script: { storyVersion: number; sections: StorySection[]; beats: StoryBeat[]; sequenceBreakdown: StorySequenceBreakdownEntry[] };
+}
+
+export interface StoryDevelopmentState {
+  storyId: string;
+  mode: "AI" | "MANUAL" | "PASTE";
+  input: string;
+  title: string;
+  premise: string;
+  logline: string;
+  summary: string;
+  content: string;
+  sections: StorySection[];
+  beats: StoryBeat[];
+  timeline: StoryTimelineEvent[];
+  characters: StoryCharacterCandidate[];
+  characterArcs: StoryCharacterArc[];
+  locations: StoryLocationCandidate[];
+  objects: StoryAssetCandidate[];
+  events: StoryEvent[];
+  sequenceBreakdown: StorySequenceBreakdownEntry[];
+  historicalRequirements: string[];
+  emotionalProgression: string[];
+  status: StoryStatus;
+  version: number;
+  approvedVersion?: number;
+  lockedVersion?: number;
+  history: StoryVersionRecord[];
+  pendingProposal?: StoryAiProposal;
+  generationContext?: StoryGenerationContext;
+  generationProvider?: string;
+  movieDnaVersionUsed?: number;
+  impactDecisions: StoryImpactDecision[];
+  contracts?: StoryDownstreamContracts;
+  createdAt: string;
+  updatedAt: string;
+  approvedAt?: string;
+  lockedAt?: string;
+}
+
+export type FilmBibleStatus = "PENDING" | "GENERATING" | "DRAFT" | "EDITED" | "APPROVED" | "LOCKED" | "CHANGED_AFTER_PRODUCTION";
+
+export interface FilmBibleSourceContext {
+  storyId: string;
+  storyVersion: number;
+  approvedStoryVersion: number;
+  movieDnaVersion: number;
+  projectTitle: string;
+  era: string;
+  generatedAt: string;
+}
+
+export interface FilmBibleVersionRecord {
+  version: number;
+  status: FilmBibleStatus;
+  source: "AI" | "MANUAL" | "MIGRATION";
+  sections: Record<string, string>;
+  changedSections: string[];
+  instruction?: string;
+  provider?: string;
+  sourceContext?: FilmBibleSourceContext;
+  createdAt: string;
+  approvedAt?: string;
+  lockedAt?: string;
+}
+
+export interface ProductionFilmBible {
+  filmBibleId: string;
+  status: FilmBibleStatus;
+  version: number;
+  approvedVersion?: number;
+  lockedVersion?: number;
+  sections: Record<string, string>;
+  history: FilmBibleVersionRecord[];
+  sourceContext?: FilmBibleSourceContext;
+  generationProvider?: string;
+  createdAt: string;
+  updatedAt: string;
+  approvedAt?: string;
+  lockedAt?: string;
+}
+
+export interface CharacterStoryState {
+  id: string;
+  sequenceId: string;
+  timeRange: string;
+  locationId: string;
+  physical: string;
+  emotional: string;
+  wardrobe: string;
+  injuries: string;
+  possessions: string[];
+  knowledge: string;
+  relationshipState: string;
+  damage: string[];
+  sourceStoryVersion: number;
+  updatedAt: string;
+}
+
+export interface CharacterVersionRecord {
+  version: number;
+  source: "STORY_ANALYSIS" | "MANUAL" | "REFERENCE" | "MIGRATION";
+  name: string;
+  role: string;
+  description: string;
+  changedFields: string[];
+  createdAt: string;
+}
+
+export interface ProductionCharacter {
+  id: string;
+  storyCandidateId: string;
+  number: number;
+  name: string;
+  category: "main" | "supporting" | "background";
+  role: string;
+  description: string;
+  importance: "MAIN" | "SUPPORTING" | "BACKGROUND";
+  ageRange?: string;
+  occupation: string;
+  personality: string;
+  backstory: string;
+  goal: string;
+  motivation: string;
+  conflict: string;
+  fear: string;
+  relationships: string[];
+  relatedBeatIds: string[];
+  relatedSequenceIds: string[];
+  referencePriority: "REQUIRED" | "HIGH" | "NORMAL";
+  identitySource: "UPLOADED_REFERENCE" | "STORY_DEFINED" | "HYBRID";
+  referenceIds: string[];
+  sheetId?: string;
+  sheetStatus: ApprovalState;
+  states: CharacterStoryState[];
+  version: number;
+  status: ApprovalState;
+  history: CharacterVersionRecord[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ProductionAssetCategory =
+  | "movie_dna"
+  | "main_character"
+  | "character"
+  | "character_state"
+  | "creature"
+  | "animal"
+  | "location"
+  | "set"
+  | "building"
+  | "room"
+  | "prop"
+  | "vehicle"
+  | "weapon"
+  | "costume"
+  | "accessory"
+  | "makeup"
+  | "vfx"
+  | "environment"
+  | "story_object"
+  | "other";
+
+export type ProductionAssetSourceType =
+  | "MOVIE_DNA"
+  | "UPLOADED_REFERENCE"
+  | "STORY"
+  | "FILM_BIBLE"
+  | "CHARACTER_ANALYSIS"
+  | "CHARACTER_STATE"
+  | "MANUAL";
+
+export interface ProductionAssetVersionRecord {
+  version: number;
+  description: string;
+  prompt: string;
+  imagePath?: string;
+  thumbnailPath?: string;
+  provider?: string;
+  model?: string;
+  generationJobId?: string;
+  status: ApprovalState;
+  createdAt: string;
+  activatedAt?: string;
+  fileRetained: boolean;
+}
+
+export interface ProductionAssetGenerationAttempt {
+  id: string;
+  version: number;
+  status: "GENERATING" | "GENERATED" | "GENERATION_FAILED";
+  prompt: string;
+  provider?: string;
+  model?: string;
+  imagePath?: string;
+  thumbnailPath?: string;
+  error?: string;
+  createdAt: string;
+  completedAt?: string;
+}
+
+export interface ProductionAssetPendingVersion {
+  version: number;
+  prompt: string;
+  imagePath: string;
+  thumbnailPath?: string;
+  provider: string;
+  model: string;
+  generationJobId: string;
+  impactMode?: "FUTURE_ONLY" | "APPLY_ALL";
+  createdAt: string;
+}
+
+export interface ProductionAssetReferenceUsage {
+  sequenceId: string;
+  providerProfileId?: string;
+  slot?: number;
+  tag?: string;
+  required: boolean;
+  role: string;
+}
+
+export interface ProductionAssetRecord {
+  id: string;
+  number: number;
+  filename: string;
+  name: string;
+  category: ProductionAssetCategory;
+  description: string;
+  continuityNotes: string[];
+  sequenceIds: string[];
+  referenceIds: string[];
+  version: number;
+  status: ApprovalState;
+  previousVersions: Array<{ version: number; description: string; createdAt: string }>;
+  storyPurpose?: string;
+  filmBibleSources?: string[];
+  sourceStoryVersion?: number;
+  sourceFilmBibleVersion?: number;
+  movieDnaVersion?: number;
+  relatedBeatIds?: string[];
+  dependencyIds?: string[];
+  characterId?: string;
+  characterRelationships?: string[];
+  characterStateId?: string;
+  sourceStateIds?: string[];
+  costumeState?: string;
+  identityReferenceId?: string;
+  characterSheetId?: string;
+  referenceRoles?: string[];
+  sourceType?: ProductionAssetSourceType;
+  required?: boolean;
+  canGenerate?: boolean;
+  generationPrompt?: string;
+  negativePrompt?: string;
+  imagePath?: string;
+  thumbnailPath?: string;
+  provider?: string;
+  model?: string;
+  generationError?: string;
+  generationAttempts?: ProductionAssetGenerationAttempt[];
+  versionHistory?: ProductionAssetVersionRecord[];
+  pendingVersion?: ProductionAssetPendingVersion;
+  referenceUsage?: ProductionAssetReferenceUsage[];
+  missingDecision?: { action: "GENERATE" | "UPLOAD" | "IGNORE"; reason?: string; createdAt: string };
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface ProductionShotPlan {
+  id: string;
+  number: number;
+  durationSeconds: number;
+  framing: string;
+  lens: string;
+  movement: string;
+  action: string;
+}
+
+export interface ProductionSequencePlan {
+  id: string;
+  number: number;
+  title: string;
+  timeRange: string;
+  durationSeconds: number;
+  synopsis: string;
+  startState: string;
+  middleState: string;
+  endState: string;
+  shots: ProductionShotPlan[];
+  script: string;
+  dialogue: string[];
+  assetIds: string[];
+  referenceSlots: Array<{ slot: number; assetId: string; tag: string; required: boolean }>;
+  promptSections: Record<string, string>;
+  compiledPrompt: string;
+  negativePrompt: string;
+  status: "PLANNED" | "READY" | "GENERATED" | "REJECTED" | "APPROVED" | "LOCKED";
+  videoPath?: string;
+  inspectionNotes: string[];
+  generationHistory: Array<{ id: string; status: string; reason?: string; videoPath?: string; createdAt: string }>;
+}
+
+export interface PlatformProfile {
+  id: string;
+  platform: TargetPlatform;
+  name: string;
+  version: number;
+  model: string;
+  promptStyle: string;
+  referenceSyntax: "NUMBERED_IMAGE" | "NAMED_ELEMENT" | "IMAGE_GUIDANCE" | "ATTACHMENT" | "CUSTOM";
+  maxReferences: number;
+  imageReferenceBehavior: string;
+  videoReferenceBehavior: string;
+  storyboardGridSupport: boolean;
+  storyboardGridBehavior: string;
+  firstFrameSupport: boolean;
+  lastFrameSupport: boolean;
+  videoContinuationSupport: boolean;
+  durationSupport: number[];
+  maxDurationSeconds: number;
+  resolutionSupport: string[];
+  aspectRatioSupport: string[];
+  cameraSyntaxPreferences: string;
+  dialogueSupport: string;
+  audioSupport: string;
+  negativePromptBehavior: string;
+  knownRestrictions: string[];
+  exportRules: string[];
+  instructions: string;
+  updatedAt: string;
+}
+
+export interface FilmmakingKnowledgePrinciple {
+  id: string;
+  name: string;
+  scope: "CHARACTER_IDENTITY" | "CHARACTER_SHEET" | "STYLE" | "PROMPT" | "STORYBOARD" | "REFERENCE_MAPPING" | "VIDEO_PROMPT" | "PLATFORM_PROFILE";
+  enforcement: string;
+  sourcePages: number[];
+  durable: boolean;
+}
+
+export interface FilmmakingKnowledgeSource {
+  id: string;
+  title: string;
+  sourceFilename: string;
+  sourceSha256: string;
+  pageCount: number;
+  version: number;
+  status: "ACTIVE" | "ARCHIVED";
+  importedAt: string;
+  principles: FilmmakingKnowledgePrinciple[];
+  platformSnapshotNotes: string[];
+}
+
+export interface StoryboardGridPanel {
+  number: number;
+  row: number;
+  column: number;
+  shotId: string;
+  beat: string;
+  camera: string;
+  movement: string;
+  annotationType: "MOOD" | "VOICE" | "STYLE";
+  annotation: string;
+}
+
+export interface SequenceStoryboardGrid {
+  id: string;
+  sequenceId: string;
+  sequenceNumber: number;
+  enabled: boolean;
+  status: "DISABLED" | "PLANNED" | "REFERENCE_READY";
+  source: "SHOT_PLANNER";
+  projectImageNumber?: number;
+  permanentFilename?: string;
+  panels: StoryboardGridPanel[];
+  generationPrompt: string;
+  referenceId?: string;
+  imagePath?: string;
+  thumbnailPath?: string;
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type SequencePromptStatus = "DRAFT" | "VALID" | "WARNING" | "BLOCKED" | "PROMPT_OUTDATED";
+
+export interface SequencePromptReference {
+  assetId: string;
+  permanentProjectImageNumber: number;
+  permanentFilename: string;
+  assetName: string;
+  assetType: string;
+  referenceRole: string;
+  reasonRequired: string;
+  approvalState: ApprovalState;
+  lockState: "LOCKED" | "UNLOCKED";
+  sourcePath?: string;
+  thumbnailPath?: string;
+  priority: number;
+  required: boolean;
+  selected: boolean;
+  platformUploadPosition?: number;
+  promptTag?: string;
+  packageFilename?: string;
+  missing: boolean;
+}
+
+export interface SequencePromptValidationIssue {
+  id: string;
+  level: "VALID" | "WARNING" | "BLOCKED";
+  code: string;
+  message: string;
+  sourceId?: string;
+}
+
+export interface SequencePromptValidation {
+  status: "VALID" | "WARNING" | "BLOCKED";
+  issues: SequencePromptValidationIssue[];
+  checkedAt: string;
+}
+
+export interface SequencePromptDialogue {
+  id: string;
+  speakerCharacterId: string;
+  speakerName: string;
+  exactDialogue: string;
+  language: string;
+  accent: string;
+  emotion: string;
+  delivery: string;
+  timing: string;
+  voiceIdentity?: string;
+  lockState: DialogueLockState;
+  approvalState: DialogueApprovalState;
+}
+
+export interface SequencePromptState {
+  promptStateId: string;
+  projectId: string;
+  sequenceId: string;
+  sequenceNumber: number;
+  platform: TargetPlatform;
+  projectSettings: Record<string, string | number | boolean>;
+  movieDNA: Record<string, string>;
+  movieDnaVisuals: Array<{ categoryId: string; categoryName: string; label: string; previewPath?: string; sheet: "genre" | "look" | "camera"; visualIndex: number }>;
+  storyContext: {
+    happenedBefore: string;
+    purpose: string;
+    characterKnowledge: string[];
+    characterMotivation: string[];
+    emotion: string;
+    conflict: string;
+    turningPoint: string;
+    changesDuringSequence: string;
+    requiredEnding: string;
+  };
+  filmBibleContext: Record<string, string>;
+  characters: Array<{ id: string; name: string; identityAnchor: string; motivation: string; knowledge: string[]; emotion: string; performance: string; identityReferenceId?: string }>;
+  characterStates: Array<{ id: string; characterId: string; label: string; physicalState: string; costume: string; injuries: string; props: string; location: string }>;
+  emotion: string;
+  performance: string[];
+  actions: string[];
+  dialogue: SequencePromptDialogue[];
+  location: { id: string; name: string; description: string; imagePath?: string; projectImageNumber?: number };
+  environment: Record<string, string>;
+  props: string[];
+  vehicles: string[];
+  weapons: string[];
+  animals: string[];
+  creatures: string[];
+  costumes: string[];
+  shots: Array<{ id: string; number: number; durationSeconds: number; framing: string; camera: string; lens: string; focalLength: string; depthOfField: string; movement: string; action: string; dialogueIds: string[]; continuityPurpose: string }>;
+  styleAnchor: string;
+  storyboardGrid: SequenceStoryboardGrid;
+  camera: Record<string, string>;
+  lens: Record<string, string>;
+  lighting: Record<string, string>;
+  audio: { voices: string[]; ambient: string[]; soundEffects: string[]; narrationRules: string[]; musicRules: string[]; silenceRules: string[] };
+  continuity: { summary: string; entities: Array<Record<string, string>>; screenDirection: string; movementDirection: string; weather: string; lighting: string };
+  startState: string;
+  midState: string;
+  endState: string;
+  references: SequencePromptReference[];
+  negativeRules: string[];
+  platformSettings: Record<string, string | number | boolean | string[] | number[]>;
+  sequenceOverrides: Record<string, string>;
+  validation: SequencePromptValidation;
+  sourceVersions: Record<string, number>;
+  knowledgeSourceIds: string[];
+  version: number;
+  status: SequencePromptStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SequencePromptVersionRecord {
+  version: number;
+  platform: TargetPlatform;
+  normalPrompt: string;
+  jsonPrompt: string;
+  referenceManifest: SequencePromptReference[];
+  validation: SequencePromptValidation;
+  reason: string;
+  createdAt: string;
+}
+
+export interface SequencePromptChangeReview {
+  id: string;
+  changedText: string;
+  likelyAffectedField: string;
+  currentValue: string;
+  proposedValue: string;
+  conflict?: string;
+  impact?: ChangeImpactReport;
+  createdAt: string;
+}
+
+export interface SequencePromptRecord {
+  sequenceId: string;
+  platform: TargetPlatform;
+  state: SequencePromptState;
+  normalPrompt: string;
+  jsonPrompt: string;
+  versions: SequencePromptVersionRecord[];
+  pendingChange?: SequencePromptChangeReview;
+  outdatedReasons: string[];
+  referenceLimitMode: "REVIEW" | "RECOMMENDED" | "MANUAL" | "MERGED_SHEET";
+  updatedAt: string;
+}
+
+export interface SequencePromptWorkspace {
+  activeSequenceId?: string;
+  selectedPlatforms: Record<string, TargetPlatform>;
+  records: Record<string, SequencePromptRecord>;
+  updatedAt: string;
+}
+
+export interface ContinuityLedgerEntry {
+  id: string;
+  sequenceId: string;
+  entityId: string;
+  state: string;
+  source: "APPROVED" | "LOCKED";
+  createdAt: string;
+}
+
+export interface ProductionTimelineEvent {
+  id: string;
+  movieTime: { startSeconds: number; endSeconds: number; label: string };
+  sequenceId?: string;
+  scene: string;
+  storyBeat: string;
+  date: string;
+  time: string;
+  timeOfDay: string;
+  weather: string;
+  locationId: string;
+  characterIds: string[];
+  characterStateIds: Record<string, string>;
+  characterKnowledge: Record<string, string[]>;
+  relationships: Record<string, string>;
+  importantActions: string[];
+  objectsAcquired: string[];
+  objectsLost: string[];
+  propIds: string[];
+  vehicleIds: string[];
+  creatureIds: string[];
+  animalIds: string[];
+  injuries: Record<string, string[]>;
+  damage: string[];
+  costumeChanges: Record<string, string>;
+  environmentChanges: string[];
+  lightingState: string;
+  storyConsequence: string;
+  sourceEventIds: string[];
+  sourceBeatIds: string[];
+  sourceStoryVersion: number;
+  sourceFilmBibleVersion?: number;
+}
+
+export interface ProductionStoryTimeline {
+  status: "EMPTY" | "READY" | "STALE";
+  version: number;
+  runtimeSeconds: number;
+  sequenceDurationSeconds: number;
+  sourceStoryVersion?: number;
+  sourceFilmBibleVersion?: number;
+  events: ProductionTimelineEvent[];
+  generatedAt?: string;
+  updatedAt: string;
+}
+
+export type ContinuityEntityType = "character" | "creature" | "animal" | "prop" | "vehicle" | "location" | "global";
+
+export interface ContinuityEntityState {
+  entityId: string;
+  entityType: ContinuityEntityType;
+  identityId: string;
+  characterStateId?: string;
+  location: string;
+  position: string;
+  movement: string;
+  screenDirection: string;
+  clothing: string;
+  shoes: string;
+  headCovering: string;
+  accessories: string[];
+  hair: string;
+  makeup: string;
+  dirt: string;
+  blood: string;
+  injuries: string[];
+  wetState: "DRY" | "WET" | "DAMP" | "UNKNOWN";
+  equipment: string[];
+  weapons: string[];
+  propsCarried: string[];
+  emotionalState: string;
+  knowledge: string[];
+  relationships: string[];
+  physicalCondition: string;
+  condition: string;
+  damage: string[];
+  ownerId?: string;
+  visible?: boolean;
+  acquired?: boolean;
+  dropped?: boolean;
+  lost?: boolean;
+  destroyed?: boolean;
+  direction?: string;
+  occupants?: string[];
+  objectsPresent?: string[];
+  weather?: string;
+  lighting?: string;
+  environmentChanges?: string[];
+  productionState?: string;
+  updatedByEventIds: string[];
+}
+
+export interface ContinuityGlobalState {
+  currentDate: string;
+  currentTime: string;
+  timeOfDay: string;
+  weather: string;
+  lighting: string;
+  storyPhase: string;
+  knownEventIds: string[];
+  environmentState: string[];
+}
+
+export type ContinuitySnapshotAnchor = "START" | "MID" | "END";
+export type ContinuitySnapshotStatus = "CANDIDATE" | "APPROVED" | "LOCKED" | "SUPERSEDED";
+
+export interface ContinuitySnapshot {
+  id: string;
+  sequenceId: string;
+  anchor: ContinuitySnapshotAnchor;
+  version: number;
+  status: ContinuitySnapshotStatus;
+  entities: ContinuityEntityState[];
+  global: ContinuityGlobalState;
+  inheritedFromSnapshotId?: string;
+  sourceTimelineEventIds: string[];
+  changeReason: string;
+  changeSource: "STORY" | "SCRIPT" | "USER" | "SEQUENCE_APPROVAL" | "GENERATION_INSPECTION" | "MIGRATION";
+  createdAt: string;
+  approvedAt?: string;
+}
+
+export interface ContinuityWarning {
+  id: string;
+  code: string;
+  severity: "WARNING" | "BLOCKING";
+  entityId: string;
+  field: string;
+  expected: string;
+  conflicting: string;
+  sourceSequenceId: string;
+  sourceSnapshotId: string;
+  affectedFutureSequenceIds: string[];
+  currentSequenceId: string;
+  status: "OPEN" | "RESOLVED" | "ACCEPTED_INTENTIONAL";
+  resolutionNote?: string;
+  createdAt: string;
+  resolvedAt?: string;
+}
+
+export interface ContinuityHistoryRecord {
+  id: string;
+  sequenceId: string;
+  snapshotId: string;
+  version: number;
+  action: "CREATED" | "APPROVED" | "LOCKED" | "SUPERSEDED" | "WARNING_ACCEPTED" | "WARNING_RESOLVED";
+  changedFields: string[];
+  reason: string;
+  source: ContinuitySnapshot["changeSource"];
+  createdAt: string;
+}
+
+export interface ProductionContinuityLedger {
+  currentByEntity: Record<string, ContinuityEntityState>;
+  currentGlobal: ContinuityGlobalState;
+  snapshots: ContinuitySnapshot[];
+  warnings: ContinuityWarning[];
+  history: ContinuityHistoryRecord[];
+  latestApprovedSequenceId?: string;
+  updatedAt: string;
+}
+
+export interface CharacterVoiceProfile {
+  id: string;
+  characterId: string;
+  voiceDescription: string;
+  language: string;
+  accent: string;
+  ageImpression: string;
+  pitch: string;
+  tone: string;
+  speakingSpeed: string;
+  emotionRange: string[];
+  deliveryStyle: string;
+  pronunciationRules: string[];
+  volumeTendencies: string;
+  status: "DRAFT" | "APPROVED" | "LOCKED";
+  version: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface NarratorVoiceProfile {
+  id: string;
+  identity: string;
+  language: string;
+  accent: string;
+  tone: string;
+  style: string;
+  delivery: string;
+  pacing: string;
+  status: "DRAFT" | "APPROVED" | "LOCKED";
+}
+
+export interface RecurringAudioIdentity {
+  id: string;
+  name: string;
+  description: string;
+  identityKey: string;
+  sourceEntityId?: string;
+  conditions: string[];
+  locked: boolean;
+  updatedAt: string;
+}
+
+export interface DialogueAudioContract {
+  supportedFields: Array<"speaker" | "exactDialogue" | "language" | "accent" | "emotion" | "delivery" | "pronunciation" | "volume" | "timing" | "approval" | "lockState">;
+  preparedForFullScript: boolean;
+}
+
+export interface ProductionAudioBible {
+  status: "DRAFT" | "APPROVED" | "LOCKED";
+  version: number;
+  filmLanguage: string;
+  dialogueLanguage: string;
+  narrationEnabled: boolean;
+  dialogueEnabled: boolean;
+  musicEnabled: boolean;
+  subtitlesEnabled: boolean;
+  voiceProfiles: CharacterVoiceProfile[];
+  narrator?: NarratorVoiceProfile;
+  ambientSounds: RecurringAudioIdentity[];
+  soundEffects: RecurringAudioIdentity[];
+  musicRules: string[];
+  intentionalSilenceRules: string[];
+  dialogueContract: DialogueAudioContract;
+  history: Array<{ version: number; changedFields: string[]; reason: string; createdAt: string }>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ProductionScriptStatus = "EMPTY" | "DRAFT" | "GENERATED" | "EDITED" | "REVIEW" | "APPROVED" | "LOCKED" | "CHANGED" | "PROMPT_OUTDATED";
+export type DialogueApprovalState = "DRAFT" | "REVIEW" | "APPROVED";
+export type DialogueLockState = "UNLOCKED" | "LOCKED";
+export type ScriptSequenceStatus = "PLANNED" | "SCRIPTED" | "READY" | "GENERATED" | "REJECTED" | "APPROVED" | "LOCKED" | "BLOCKED";
+
+export interface ScriptDialogueTiming {
+  startSeconds: number;
+  endSeconds: number;
+  label: string;
+}
+
+export interface ScriptDialogueLine {
+  id: string;
+  sequenceId: string;
+  sceneId: string;
+  speakerCharacterId: string;
+  exactDialogue: string;
+  language: string;
+  accent: string;
+  emotion: string;
+  delivery: string;
+  pronunciation: string[];
+  volume: string;
+  timing: ScriptDialogueTiming;
+  approvalState: DialogueApprovalState;
+  lockState: DialogueLockState;
+  sourceScriptVersion: number;
+  audioVoiceProfileId?: string;
+  timingWarning?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ScriptShotType =
+  | "Establishing" | "Extreme Wide" | "Wide" | "Medium Wide" | "Medium" | "Medium Close Up"
+  | "Close Up" | "Extreme Close Up" | "Over Shoulder" | "Two Shot" | "Group Shot" | "POV"
+  | "Reaction" | "Insert" | "Macro" | "Tracking" | "Dolly" | "Crane" | "Low Angle"
+  | "High Angle" | "Dutch Angle" | "Top Down" | "Aerial" | "Drone" | "Custom"
+  // Legacy names remain readable so existing saved projects migrate without losing shot data.
+  | "Establishing shot" | "Wide shot" | "Medium shot" | "Close up" | "Extreme close up"
+  | "Over shoulder" | "Reaction shot" | "Tracking shot" | "Dolly shot" | "Crane shot"
+  | "Low angle" | "High angle";
+
+export interface ScriptShotContinuityState {
+  characterPosition: string;
+  characterFacing: string;
+  screenDirection: string;
+  movementDirection: string;
+  props: string;
+  costume: string;
+  injury: string;
+  environment: string;
+  lighting: string;
+  cameraRelationship: string;
+}
+
+export interface ScriptShot {
+  id: string;
+  sequenceId: string;
+  number: number;
+  durationSeconds: number;
+  startSeconds: number;
+  endSeconds: number;
+  shotType: ScriptShotType;
+  framing: string;
+  cameraAngle: string;
+  cameraMovement: string;
+  lens: string;
+  focalLength: string;
+  depthOfField: string;
+  subject: string;
+  subjectAction: string;
+  characterStateIds: string[];
+  emotion: string;
+  locationId: string;
+  lighting: string;
+  assetIds: string[];
+  dialogueIds: string[];
+  sound: string;
+  storyPurpose: string;
+  continuityPurpose: string;
+  transition: string;
+  startVisualState: string;
+  endVisualState: string;
+  continuityState: ScriptShotContinuityState;
+  controlsSequenceEndState: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ProductionScriptScene {
+  id: string;
+  number: number;
+  sequenceId: string;
+  heading: string;
+  locationId: string;
+  timeOfDay: string;
+  action: string;
+  characterIds: string[];
+  dialogueIds: string[];
+  shotIds: string[];
+  performanceNotes: string[];
+  transition: string;
+  importantSound: string[];
+  importantVisualActions: string[];
+  assetIds: string[];
+  sourceStoryEventIds: string[];
+  updatedAt: string;
+}
+
+export interface ScriptAssetRequirement {
+  assetId: string;
+  required: boolean;
+  resolved: boolean;
+  reason: string;
+}
+
+export interface ScriptProductionSequence {
+  id: string;
+  number: number;
+  title: string;
+  startSeconds: number;
+  endSeconds: number;
+  timeRange: string;
+  durationSeconds: number;
+  storyPurpose: string;
+  storyBeat: string;
+  sceneIds: string[];
+  characterIds: string[];
+  characterStateIds: string[];
+  locationId: string;
+  emotion: string;
+  conflict: string;
+  actions: string[];
+  dialogueIds: string[];
+  shotIds: string[];
+  assetRequirements: ScriptAssetRequirement[];
+  startState: string;
+  midState: string;
+  endState: string;
+  continuityRequirements: string[];
+  audioRequirements: string[];
+  negativeRules: string[];
+  status: ScriptSequenceStatus;
+  approvalState: "DRAFT" | "REVIEW" | "APPROVED";
+  lockState: "UNLOCKED" | "LOCKED";
+  warnings: string[];
+  previousSequenceId?: string;
+  nextSequenceId?: string;
+  sourceScriptVersion: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ScriptVersionRecord {
+  version: number;
+  status: ProductionScriptStatus;
+  scenes: ProductionScriptScene[];
+  sequences: ScriptProductionSequence[];
+  dialogue: ScriptDialogueLine[];
+  shots: ScriptShot[];
+  sourceStoryVersion: number;
+  sourceFilmBibleVersion: number;
+  sourceMovieDnaVersion: number;
+  sourceContinuityVersion: number;
+  sourceAudioBibleVersion: number;
+  approved: boolean;
+  locked: boolean;
+  reason: string;
+  createdAt: string;
+  approvedAt?: string;
+  lockedAt?: string;
+}
+
+export interface ScriptChangeProposal {
+  id: string;
+  instruction: string;
+  sequenceId: string;
+  sceneId?: string;
+  dialogueId?: string;
+  variant: number;
+  currentSection: string;
+  proposedSection: string;
+  affectedDialogueIds: string[];
+  affectedShotIds: string[];
+  affectedSequenceIds: string[];
+  affectedContinuityIds: string[];
+  affectedAssetIds: string[];
+  preservesLockedDialogue: boolean;
+  createdAt: string;
+}
+
+export interface ProductionScriptSourceManifest {
+  storyVersion: number;
+  filmBibleVersion: number;
+  movieDnaVersion: number;
+  continuityVersion: number;
+  audioBibleVersion: number;
+  storyTimelineEventIds: string[];
+  continuitySnapshotIds: string[];
+  characterIds: string[];
+  characterStateIds: string[];
+  assetIds: string[];
+  voiceProfileIds: string[];
+  runtimeSeconds: number;
+  sequenceDurationSeconds: number;
+}
+
+export interface ScriptContinuityDecision {
+  id: string;
+  warningId: string;
+  sequenceId: string;
+  action: "FIX_SCRIPT" | "ACCEPT_INTENTIONAL_CHANGE";
+  note?: string;
+  createdAt: string;
+}
+
+export interface ProductionScriptState {
+  scriptId: string;
+  projectId: string;
+  storyVersion: number;
+  filmBibleVersion: number;
+  movieDnaVersion: number;
+  continuityVersion: number;
+  audioBibleVersion: number;
+  scriptVersion: number;
+  status: ProductionScriptStatus;
+  sourceManifest: ProductionScriptSourceManifest;
+  scenes: ProductionScriptScene[];
+  sequences: ScriptProductionSequence[];
+  dialogue: ScriptDialogueLine[];
+  shots: ScriptShot[];
+  versions: ScriptVersionRecord[];
+  pendingProposal?: ScriptChangeProposal;
+  continuityDecisions: ScriptContinuityDecision[];
+  history: Array<{ id: string; version: number; action: string; scopeIds: string[]; reason: string; createdAt: string }>;
+  createdAt: string;
+  updatedAt: string;
+  approvedAt?: string;
+  lockedAt?: string;
+}
+
+export interface ProductionMemoryLayer {
+  storyTimeline: ProductionStoryTimeline;
+  continuity: ProductionContinuityLedger;
+  audioBible: ProductionAudioBible;
+  script: ProductionScriptState;
+  updatedAt: string;
+}
+
+export interface ProductionWorkflow {
+  currentStage: ProductionStage;
+  gates: WorkflowGate[];
+  movieDna: MovieDnaState;
+  story: StoryDevelopmentState;
+  filmBible: ProductionFilmBible;
+  characters: ProductionCharacter[];
+  assets: ProductionAssetRecord[];
+  nextProjectImageNumber: number;
+  audioBible: Record<string, string>;
+  sequences: ProductionSequencePlan[];
+  continuityLedger: ContinuityLedgerEntry[];
+  permanentNegativeRules: string[];
+  platformProfiles: Record<TargetPlatform, PlatformProfile>;
+  knowledgeSources: FilmmakingKnowledgeSource[];
+  storyboardGrids: Record<string, SequenceStoryboardGrid>;
+  promptWorkspace: SequencePromptWorkspace;
+  updatedAt: string;
 }
 
 export const REFERENCE_ROLES = [
@@ -133,7 +1614,48 @@ export const REFERENCE_ROLES = [
 ] as const;
 export type ReferenceRole = (typeof REFERENCE_ROLES)[number];
 export type StoryReferenceUsage = "REQUIRED" | "PREFERRED" | "VISUAL_REFERENCE_ONLY" | "OPTIONAL";
-export type ReferenceAssetType = "character" | "creature" | "animal" | "location" | "prop" | "wardrobe" | "style" | "composition" | "camera" | "lighting" | "audio" | "voice" | "other";
+export type ReferenceAssetType =
+  | "character"
+  | "creature"
+  | "animal"
+  | "location"
+  | "building"
+  | "room"
+  | "vehicle"
+  | "prop"
+  | "weapon"
+  | "wardrobe"
+  | "costume"
+  | "accessory"
+  | "object"
+  | "style"
+  | "composition"
+  | "camera"
+  | "lighting"
+  | "audio"
+  | "voice"
+  | "other";
+
+export interface ReferenceUploadInput {
+  filename: string;
+  mimeType: "image/png" | "image/jpeg" | "image/webp";
+  base64: string;
+  name: string;
+  type: ReferenceAssetType;
+  label?: string;
+  roles?: ReferenceRole[];
+  storyUsage?: StoryReferenceUsage;
+  mainCharacter?: boolean;
+  assetId?: string;
+}
+
+export interface ProjectReferenceVersion {
+  version: number;
+  sourcePath: string;
+  mimeType: string;
+  originalFilename: string;
+  createdAt: string;
+}
 
 export interface PreStorySetup {
   mode: ProjectConfig["storyMode"];
@@ -167,6 +1689,10 @@ export interface ProjectReference {
   priority: number;
   protected: boolean;
   linkedAssetIds: string[];
+  assetId?: string;
+  label?: string;
+  sequenceIds: string[];
+  versions: ProjectReferenceVersion[];
   analysis?: ReferenceAnalysis;
   createdAt: string;
   updatedAt: string;
@@ -185,7 +1711,34 @@ export interface ContinuitySheetView {
   id: string;
   sheetId: string;
   name: string;
-  angle: "MASTER" | "FRONT" | "PROFILE" | "BACK" | "THREE_QUARTER" | "DETAIL" | "EXPRESSION" | "ACTION";
+  angle:
+    | "MASTER"
+    | "FRONT"
+    | "PROFILE"
+    | "LEFT_PROFILE"
+    | "RIGHT_PROFILE"
+    | "BACK"
+    | "THREE_QUARTER"
+    | "FULL_BODY_FRONT"
+    | "FULL_BODY_SIDE"
+    | "FULL_BODY_BACK"
+    | "CLOSE_FACE"
+    | "NEUTRAL_EXPRESSION"
+    | "DETAIL"
+    | "EXPRESSION"
+    | "ACTION"
+    | "WARDROBE"
+    | "STORY_LOOK"
+    | "EXTERIOR"
+    | "INTERIOR"
+    | "DAY"
+    | "NIGHT"
+    | "TOP"
+    | "SIDE"
+    | "SCALE"
+    | "DAMAGE"
+    | "ANATOMY"
+    | "EQUIPMENT";
   priority: number;
   imagePath?: string;
   status: ApprovalState;
@@ -261,6 +1814,7 @@ export interface AppSettings {
   hybrid: HybridBrainSettings;
   openaiModel: string;
   trustedProjectWorkspace: boolean;
+  movieDnaPresets: MovieDnaUserPreset[];
   updatedAt: string;
 }
 
@@ -440,8 +1994,23 @@ export interface AssetEntity extends ProductionEntity {
   thumbnailPath?: string;
   sourceReferenceIds: string[];
   generationJobIds: string[];
+  generationError?: string;
   sheetId?: string;
   critical: boolean;
+  manifestCategory?: ProductionAssetCategory;
+  projectNumber?: number;
+  permanentFilename?: string;
+  storyPurpose?: string;
+  sourceStoryVersion?: number;
+  sourceFilmBibleVersion?: number;
+  movieDnaVersion?: number;
+  sequenceIds?: string[];
+  dependencyIds?: string[];
+  parentCharacterId?: string;
+  characterStateId?: string;
+  costumeState?: string;
+  identityReferenceId?: string;
+  characterSheetId?: string;
 }
 
 export interface ShotEntity extends ProductionEntity {
@@ -559,7 +2128,7 @@ export interface PlatformPromptCompilation {
   settings: Record<string, string | number | boolean>;
 }
 
-export type ImageGenerationTarget = "ASSET_MASTER" | "SHEET_VIEW" | "SCENE_MASTER" | "SCENE_START" | "SCENE_MID" | "SCENE_END" | "STORYBOARD_FRAME";
+export type ImageGenerationTarget = "MOVIE_DNA_PREVIEW" | "MOVIE_DNA_COMBINED_GENRE" | "MOVIE_DNA_MASTER_FRAME" | "ASSET_MASTER" | "SHEET_VIEW" | "SCENE_MASTER" | "SCENE_START" | "SCENE_MID" | "SCENE_END" | "STORYBOARD_FRAME";
 
 export interface ImageGenerationJob {
   id: string;
@@ -712,6 +2281,7 @@ export interface ProjectMemory {
   regenerationHistory: GenerationRecord[];
   approvalHistory: ApprovalRecord[];
   database: ProductionDatabase;
+  productionMemory: ProductionMemoryLayer;
 }
 
 export interface StoryCharacter {
@@ -748,8 +2318,14 @@ export type AssetType =
   | "animal"
   | "creature"
   | "location"
+  | "building"
+  | "room"
   | "prop"
+  | "weapon"
   | "wardrobe"
+  | "costume"
+  | "accessory"
+  | "object"
   | "vehicle";
 
 export interface AssetItem {
@@ -884,13 +2460,23 @@ export interface MovieProject extends ProjectConfig {
   brain: ProjectBrainState;
   memory: ProjectMemory;
   preStorySetup: PreStorySetup;
+  production: ProductionWorkflow;
   createdAt: string;
   updatedAt: string;
 }
 
-export interface CreateProjectInput extends ProjectConfig {
+export type CreateProjectInput = Omit<ProjectConfig,
+  "sequenceDurationSeconds" | "resolution" | "filmLanguage" | "dialogueLanguage" |
+  "audienceRating" | "targetPlatform" | "narrationEnabled" | "dialogueEnabled" |
+  "musicEnabled" | "subtitlesEnabled"
+> & Partial<Pick<ProjectConfig,
+  "sequenceDurationSeconds" | "resolution" | "filmLanguage" | "dialogueLanguage" |
+  "audienceRating" | "targetPlatform" | "narrationEnabled" | "dialogueEnabled" |
+  "musicEnabled" | "subtitlesEnabled"
+>> & {
   brain?: BrainMode;
-}
+  mainCharacterReference?: ReferenceUploadInput;
+};
 
 export interface ProjectListItem {
   id: string;

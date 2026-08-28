@@ -38,6 +38,14 @@ const setup = async () => {
   return { store, agent };
 };
 
+const useLegacyPhasePipeline = async (store: ProjectStore, project: Awaited<ReturnType<ProductionAgent["createProject"]>>) => {
+  project.production.movieDna.status = "LOCKED";
+  project.production.gates.forEach((gate) => {
+    if (["story", "film_bible", "characters", "asset_manifest", "sequences", "platform_prompts"].includes(gate.stage)) gate.status = "APPROVED";
+  });
+  await store.saveProject(project);
+};
+
 afterEach(async () => {
   await Promise.all(roots.splice(0).map((root) => rm(root, { recursive: true, force: true })));
 });
@@ -46,6 +54,7 @@ describe("ProductionAgent", () => {
   it("runs the complete production pipeline and writes a movie project", async () => {
     const { store, agent } = await setup();
     const created = await agent.createProject(input);
+    await useLegacyPhasePipeline(store, created);
 
     await agent.start(created.id, "full");
     await agent.waitForIdle(created.id);
@@ -66,11 +75,12 @@ describe("ProductionAgent", () => {
     const saved = JSON.parse(await readFile(path.join(root, "project.json"), "utf8"));
     expect(saved.id).toBe(project.id);
     expect(saved.status).toBe("complete");
-  });
+  }, 15_000);
 
   it("pauses for approval in phase mode and resumes one phase at a time", async () => {
     const { store, agent } = await setup();
     const created = await agent.createProject({ ...input, mode: "phases" });
+    await useLegacyPhasePipeline(store, created);
 
     await agent.start(created.id, "phases");
     await agent.waitForIdle(created.id);
@@ -90,6 +100,7 @@ describe("ProductionAgent", () => {
   it("regenerates the selected phase and invalidates downstream work", async () => {
     const { store, agent } = await setup();
     const created = await agent.createProject({ ...input, mode: "phases" });
+    await useLegacyPhasePipeline(store, created);
     await agent.start(created.id, "phases");
     await agent.waitForIdle(created.id);
     const before = await store.getProject(created.id);

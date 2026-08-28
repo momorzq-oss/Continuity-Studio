@@ -19,6 +19,8 @@ import {
 } from "lucide-react";
 import { api } from "../api";
 import { REFERENCE_ROLES } from "../types";
+import { ReferenceManagerView } from "./ReferenceManagerView";
+import { AssetLibraryView, type AddManifestAssetInput } from "./AssetLibraryView";
 import type {
   ApprovalState,
   AssetEntity,
@@ -33,6 +35,7 @@ import type {
   StoryArtifact,
   RuleDefinition,
   RuleSeverity,
+  ReferenceUploadInput,
 } from "../types";
 import type { ViewId } from "./Sidebar";
 
@@ -51,8 +54,18 @@ export function ArtifactView({
   onUploadReference,
   onCompleteReferenceSetup,
   onUpdateReference,
+  onReplaceReference,
+  onRemoveReference,
+  onGenerateReferenceSheet,
   onGenerateAllAssets,
   onGenerateAsset,
+  onRebuildAssetManifest,
+  onAddAsset,
+  onUpdateManifestAsset,
+  onMissingAssetDecision,
+  onAcceptAssetReplacement,
+  onRejectAssetReplacement,
+  onDeleteManualAsset,
   onPlanScenes,
   onGenerateAllScenes,
   onGenerateScene,
@@ -67,11 +80,21 @@ export function ArtifactView({
   onAssetState: (assetId: string, state: ApprovalState) => Promise<void>;
   onCreateAssetVersion: (assetId: string) => Promise<void>;
   onOverrideIssue: (issueId: string) => Promise<void>;
-  onUploadReference: (input: { filename: string; mimeType: "image/png" | "image/jpeg" | "image/webp"; base64: string; name: string; type: string; roles?: string[]; storyUsage?: string; mainCharacter?: boolean }) => Promise<void>;
+  onUploadReference: (input: ReferenceUploadInput) => Promise<void>;
   onCompleteReferenceSetup: () => Promise<void>;
-  onUpdateReference: (referenceId: string, input: { roles?: string[]; storyUsage?: string; priority?: number }) => Promise<void>;
+  onUpdateReference: (referenceId: string, input: { roles?: string[]; storyUsage?: string; priority?: number; sequenceIds?: string[]; label?: string; name?: string }) => Promise<void>;
+  onReplaceReference: (referenceId: string, input: Pick<ReferenceUploadInput, "filename" | "mimeType" | "base64">) => Promise<void>;
+  onRemoveReference: (referenceId: string) => Promise<void>;
+  onGenerateReferenceSheet: (referenceId: string, force?: boolean) => Promise<void>;
   onGenerateAllAssets: (force: boolean) => Promise<void>;
-  onGenerateAsset: (assetId: string, force: boolean) => Promise<void>;
+  onGenerateAsset: (assetId: string, force: boolean, impactMode?: "FUTURE_ONLY" | "APPLY_ALL") => Promise<void>;
+  onRebuildAssetManifest: () => Promise<void>;
+  onAddAsset: (input: AddManifestAssetInput) => Promise<string | undefined>;
+  onUpdateManifestAsset: (assetId: string, input: { description?: string; storyPurpose?: string; sequenceIds?: string[]; referenceRoles?: string[]; generationPrompt?: string }) => Promise<void>;
+  onMissingAssetDecision: (assetId: string, action: "GENERATE" | "UPLOAD" | "IGNORE", reason?: string) => Promise<void>;
+  onAcceptAssetReplacement: (assetId: string) => Promise<void>;
+  onRejectAssetReplacement: (assetId: string) => Promise<void>;
+  onDeleteManualAsset: (assetId: string) => Promise<void>;
   onPlanScenes: () => Promise<void>;
   onGenerateAllScenes: (force: boolean) => Promise<void>;
   onGenerateScene: (sceneId: string, force: boolean) => Promise<void>;
@@ -80,11 +103,11 @@ export function ArtifactView({
   onUpdateModelProfile: (profileId: string, input: { enabled?: boolean; model?: string; maxDurationSeconds?: number; maxImageReferences?: number; supportsStartFrame?: boolean; supportsEndFrame?: boolean; tagTemplate?: string }) => Promise<void>;
 }) {
   if (view === "overview") return <Overview project={project} />;
-  if (view === "reference_setup") return <ReferenceWorkspace project={project} setup onUpload={onUploadReference} onComplete={onCompleteReferenceSetup} onUpdate={onUpdateReference} />;
-  if (view === "references") return <ReferenceWorkspace project={project} onUpload={onUploadReference} onComplete={onCompleteReferenceSetup} onUpdate={onUpdateReference} />;
+  if (view === "reference_setup") return <ReferenceManagerView project={project} setup onUpload={onUploadReference} onComplete={onCompleteReferenceSetup} onUpdate={onUpdateReference} onReplace={onReplaceReference} onRemove={onRemoveReference} onGenerateSheet={onGenerateReferenceSheet} />;
+  if (view === "references") return <ReferenceManagerView project={project} onUpload={onUploadReference} onComplete={onCompleteReferenceSetup} onUpdate={onUpdateReference} onReplace={onReplaceReference} onRemove={onRemoveReference} onGenerateSheet={onGenerateReferenceSheet} />;
   if (view === "story") return <StoryBible project={project} />;
   if (view === "film_bible") return <FilmBible project={project} />;
-  if (view === "assets") return <Assets project={project} onAssetState={onAssetState} onCreateAssetVersion={onCreateAssetVersion} onGenerateAll={onGenerateAllAssets} onGenerateAsset={onGenerateAsset} />;
+  if (view === "assets") return <AssetLibraryView project={project} onAssetState={onAssetState} onGenerateAll={onGenerateAllAssets} onGenerateAsset={onGenerateAsset} onUploadReference={onUploadReference} onReplaceReference={onReplaceReference} onRemoveReference={onRemoveReference} onRebuildManifest={onRebuildAssetManifest} onAddAsset={onAddAsset} onUpdateAsset={onUpdateManifestAsset} onMissingDecision={onMissingAssetDecision} onAcceptReplacement={onAcceptAssetReplacement} onRejectReplacement={onRejectAssetReplacement} onDeleteAsset={onDeleteManualAsset} />;
   if (view === "characters") return <AssetCategory project={project} title="Characters" assets={project.memory.database.characters} />;
   if (view === "creatures") return <AssetCategory project={project} title="Creatures & animals" assets={[...project.memory.database.creatures, ...project.memory.database.animals]} />;
   if (view === "locations") return <AssetCategory project={project} title="Locations" assets={project.memory.database.locations} />;
@@ -240,7 +263,7 @@ function AssetCategory({ project, title, assets }: { project: MovieProject; titl
   );
 }
 
-function Assets({ project, onAssetState, onCreateAssetVersion, onGenerateAll, onGenerateAsset }: { project: MovieProject; onAssetState: (assetId: string, state: ApprovalState) => Promise<void>; onCreateAssetVersion: (assetId: string) => Promise<void>; onGenerateAll: (force: boolean) => Promise<void>; onGenerateAsset: (assetId: string, force: boolean) => Promise<void> }) {
+function Assets({ project, onAssetState, onCreateAssetVersion, onGenerateAll, onGenerateAsset }: { project: MovieProject; onAssetState: (assetId: string, state: ApprovalState) => Promise<void>; onCreateAssetVersion: (assetId: string) => Promise<void>; onGenerateAll: (force: boolean) => Promise<void>; onGenerateAsset: (assetId: string, force: boolean, impactMode?: "FUTURE_ONLY" | "APPLY_ALL") => Promise<void> }) {
   const manifest = project.artifacts.assets as AssetManifestArtifact | undefined;
   if (!manifest) return <Empty title="Asset manifest not generated" detail="The Asset Agent will inspect the story and create permanent IDs for every required production asset." />;
   const database = project.memory.database;

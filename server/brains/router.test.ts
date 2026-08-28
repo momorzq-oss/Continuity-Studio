@@ -10,6 +10,7 @@ import { SettingsStore } from "../settings.js";
 import { LocalLlmBrainProvider } from "./local-llm-provider.js";
 import type { BrainProvider } from "./provider.js";
 import { BrainRouter, BrainUnavailableError } from "./router.js";
+import { createProductionWorkflow } from "../production-workflow.js";
 
 const roots: string[] = [];
 
@@ -48,6 +49,16 @@ const project = (brain: MovieProject["brain"]["selected"]): MovieProject => ({
   storyMode: "AI_FIRST",
   era: "Contemporary",
   aspectRatio: "2.39:1",
+  sequenceDurationSeconds: 60,
+  resolution: "4K UHD",
+  filmLanguage: "English",
+  dialogueLanguage: "English",
+  audienceRating: "PG",
+  targetPlatform: "Seedance",
+  narrationEnabled: false,
+  dialogueEnabled: true,
+  musicEnabled: true,
+  subtitlesEnabled: true,
   autoGenerateAssets: true,
   autoGenerateScenes: true,
   autoGenerateStoryboard: true,
@@ -59,6 +70,7 @@ const project = (brain: MovieProject["brain"]["selected"]): MovieProject => ({
   brain: createProjectBrain(brain),
   memory: createProjectMemory(),
   preStorySetup: { mode: "AI_FIRST", completed: true, sheetCreation: "AUTO", blockingIssues: [] },
+  production: createProductionWorkflow({ title: "Router Test", idea: "A complete story idea long enough for project validation.", genre: "Drama", runtimeMinutes: 2, sequenceCount: 2, sequenceDurationSeconds: 60, language: "English", filmLanguage: "English", dialogueLanguage: "English", visualStyle: "Cinematic", mode: "full", storyMode: "AI_FIRST", era: "Contemporary", aspectRatio: "2.39:1", resolution: "4K UHD", audienceRating: "PG", targetPlatform: "Seedance", narrationEnabled: false, dialogueEnabled: true, musicEnabled: true, subtitlesEnabled: true, autoGenerateAssets: true, autoGenerateScenes: true, autoGenerateStoryboard: true }),
   createdAt: new Date().toISOString(),
   updatedAt: new Date().toISOString(),
 });

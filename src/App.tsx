@@ -4,10 +4,12 @@ import { api } from "./api";
 import { AgentView } from "./components/AgentView";
 import { AboutView } from "./components/AboutView";
 import { ArtifactView } from "./components/ArtifactViews";
+import type { AddManifestAssetInput } from "./components/AssetLibraryView";
 import { CreateProjectModal } from "./components/CreateProjectModal";
 import { DiagnosticsView } from "./components/DiagnosticsView";
 import { FirstRunWizard } from "./components/FirstRunWizard";
 import { SettingsView } from "./components/SettingsView";
+import { ProductionWorkflowView } from "./components/ProductionWorkflowView";
 import { Sidebar, type ViewId } from "./components/Sidebar";
 import { SystemStatusBar } from "./components/SystemStatusBar";
 import type {
@@ -22,12 +24,17 @@ import type {
 
 const viewTitles: Record<ViewId, { title: string; kicker: string }> = {
   agent: { title: "Production Agent", kicker: "Orchestrate the complete movie workflow" },
-  reference_setup: { title: "Pre-Story Reference Setup", kicker: "Choose story mode and protect uploaded visual sources before writing" },
-  references: { title: "Reference Library", kicker: "Uploaded sources, roles, priority, lineage, and story usage" },
+  project_setup: { title: "Project Setup", kicker: "Runtime, delivery, languages, tracks, platform, and automatic sequence count" },
+  movie_dna: { title: "Movie DNA", kicker: "Select, review, version, and lock the permanent visual system before Story" },
+  reference_setup: { title: "Character Reference Setup", kicker: "Upload, generate, replace, version, and lock protected character sources" },
+  references: { title: "Reference Manager", kicker: "Every uploaded source, generated continuity sheet, and sequence assignment" },
   overview: { title: "Project Overview", kicker: "Production status and generated artifacts" },
-  story: { title: "Story & Film Bible", kicker: "Narrative, cast, world, and locked movie rules" },
+  story: { title: "Story Narrative Control", kicker: "What happens, why it happens, and who changes · structured Story v2 source of truth" },
+  full_script: { title: "Full Script v2", kicker: "Screenplay, exact dialogue locks, production shots, and formal sequence plans" },
+  timeline: { title: "Story Timeline", kicker: "The complete movie in chronological, sequence-aligned production memory" },
   film_bible: { title: "Film Bible", kicker: "Approved world law, visual language, and production restrictions" },
-  assets: { title: "Asset Manifest", kicker: "Permanent IDs for every production element" },
+  assets: { title: "Image Asset Library", kicker: "Generate, inspect, version, approve, lock, and download production references" },
+  asset_manifest: { title: "Numbered Asset Manifest", kicker: "Complete production inventory, versions, references, and approval state" },
   characters: { title: "Characters", kicker: "Locked identity, face, body, wardrobe, and reference records" },
   creatures: { title: "Creatures & Animals", kicker: "Persistent anatomy, equipment, damage, and state" },
   locations: { title: "Locations", kicker: "Locked geography, architecture, routes, and period details" },
@@ -38,6 +45,7 @@ const viewTitles: Record<ViewId, { title: string; kicker: string }> = {
   storyboard: { title: "Storyboard", kicker: "Generated shot frames kept separate from scene assets" },
   prompts: { title: "Prompt Compiler", kicker: "Provider-ready prompts inherited from locked production state" },
   continuity: { title: "Continuity Review", kicker: "Identity, geography, lighting, and damage checks" },
+  audio_bible: { title: "Audio Bible", kicker: "Permanent voices, narration, ambience, effects, music, and intentional silence" },
   rules: { title: "Rule Profiles", kicker: "Enable, disable, and override operational filmmaking rules" },
   generations: { title: "Generations", kicker: "Provider-independent prompt, attempt, and result ledger" },
   review: { title: "Continuity Inspector", kicker: "Blocking validation issues, overrides, and approvals" },
@@ -121,6 +129,23 @@ export default function App() {
     }
   };
 
+  const addManifestAsset = async (input: AddManifestAssetInput) => {
+    if (!project) return undefined;
+    setBusy(true);
+    setError(undefined);
+    try {
+      const result = await api.addAsset(project.id, input);
+      setProject(result.project);
+      setMode(result.project.mode);
+      return result.assetId;
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : "The asset could not be added.");
+      return undefined;
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const createProject = async (input: CreateProjectInput) => {
     setBusy(true);
     setError(undefined);
@@ -128,7 +153,7 @@ export default function App() {
       const created = await api.createProject(input);
       setProject(created);
       setMode(created.mode);
-      setActiveView(created.preStorySetup.completed ? "agent" : "reference_setup");
+      setActiveView(created.preStorySetup.completed ? "project_setup" : "reference_setup");
       setModalOpen(false);
       await loadProjects(created.id);
     } catch (failure) {
@@ -237,6 +262,25 @@ export default function App() {
               <DiagnosticsView brain={project.brain.selected} />
             ) : activeView === "about" ? (
               <AboutView />
+            ) : (["project_setup", "movie_dna", "story", "full_script", "timeline", "film_bible", "characters", "asset_manifest", "sequences", "prompts", "continuity", "audio_bible", "export"] as ViewId[]).includes(activeView) ? (
+              <ProductionWorkflowView
+                view={activeView}
+                project={project}
+                busy={busy}
+                onAction={(action, payload) => act(() => api.workflowAction(project.id, action, payload))}
+                onUploadVideo={(sequenceId, file) => act(() => api.uploadSequenceVideo(project.id, sequenceId, file))}
+                onUploadReference={(input) => act(() => api.uploadReference(project.id, input))}
+                onGenerateAsset={(assetId, force) => act(() => api.generateAsset(project.id, assetId, force))}
+                onAssetState={(assetId, state) => act(() => api.updateAssetStatus(project.id, assetId, state))}
+                onNavigate={setActiveView}
+                onDownload={download}
+                settings={settings}
+                onUpdateSettings={async (patch) => {
+                  const updated = await api.updateSettings(patch);
+                  setSettings(updated);
+                  return updated;
+                }}
+              />
             ) : (
               <ArtifactView
                 view={activeView}
@@ -248,8 +292,18 @@ export default function App() {
                 onUploadReference={(input) => act(() => api.uploadReference(project.id, input))}
                 onCompleteReferenceSetup={() => act(() => api.completeReferenceSetup(project.id))}
                 onUpdateReference={(referenceId, input) => act(() => api.updateReference(project.id, referenceId, input))}
+                onReplaceReference={(referenceId, input) => act(() => api.replaceReference(project.id, referenceId, input))}
+                onRemoveReference={(referenceId) => act(() => api.removeReference(project.id, referenceId))}
+                onGenerateReferenceSheet={(referenceId, force) => act(() => api.generateReferenceSheet(project.id, referenceId, force))}
                 onGenerateAllAssets={(force) => act(() => api.generateAllAssets(project.id, force))}
-                onGenerateAsset={(assetId, force) => act(() => api.generateAsset(project.id, assetId, force))}
+                onGenerateAsset={(assetId, force, impactMode) => act(() => api.generateAsset(project.id, assetId, force, impactMode))}
+                onRebuildAssetManifest={() => act(() => api.rebuildAssetManifest(project.id))}
+                onAddAsset={addManifestAsset}
+                onUpdateManifestAsset={(assetId, input) => act(() => api.updateManifestAsset(project.id, assetId, input))}
+                onMissingAssetDecision={(assetId, action, reason) => act(() => api.decideMissingAsset(project.id, assetId, action, reason))}
+                onAcceptAssetReplacement={(assetId) => act(() => api.acceptAssetReplacement(project.id, assetId))}
+                onRejectAssetReplacement={(assetId) => act(() => api.rejectAssetReplacement(project.id, assetId))}
+                onDeleteManualAsset={(assetId) => act(() => api.deleteManualAsset(project.id, assetId))}
                 onPlanScenes={() => act(() => api.planScenes(project.id))}
                 onGenerateAllScenes={(force) => act(() => api.generateAllScenes(project.id, force))}
                 onGenerateScene={(sceneId, force) => act(() => api.generateScene(project.id, sceneId, force))}
