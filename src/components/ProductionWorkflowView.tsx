@@ -856,7 +856,7 @@ function FullScriptStudio({ project, busy, onAction, onNavigate }: Props) {
   </PageShell>;
 }
 
-function SequenceStudio({ project, busy, onAction, onNavigate }: Props) {
+function SequenceStudio({ project, busy, onAction, onNavigate, onUploadVideo }: Props) {
   const script = project.memory.productionMemory.script;
   const [selectedId, setSelectedId] = useState(script.sequences[0]?.id ?? "");
   const [workspaceSequenceId, setWorkspaceSequenceId] = useState<string | undefined>(() => script.sequences.some((sequence) => sequence.id === project.production.promptWorkspace.activeSequenceId) ? project.production.promptWorkspace.activeSequenceId : undefined);
@@ -865,7 +865,7 @@ function SequenceStudio({ project, busy, onAction, onNavigate }: Props) {
   const shots = selected ? script.shots.filter((shot) => shot.sequenceId === selected.id).sort((a, b) => a.number - b.number) : [];
   const dialogue = selected ? script.dialogue.filter((line) => line.sequenceId === selected.id) : [];
   const missing = selected?.assetRequirements.filter((requirement) => requirement.required && !requirement.resolved) ?? [];
-  if (workspaceSequenceId) return <SequenceWorkspaceView project={project} initialSequenceId={workspaceSequenceId} busy={busy} onAction={onAction} onSequenceChange={setWorkspaceSequenceId} onBack={() => setWorkspaceSequenceId(undefined)} onClose={() => setWorkspaceSequenceId(undefined)} />;
+  if (workspaceSequenceId) return <SequenceWorkspaceView project={project} initialSequenceId={workspaceSequenceId} busy={busy} onAction={onAction} onUploadVideo={onUploadVideo} onSequenceChange={setWorkspaceSequenceId} onBack={() => setWorkspaceSequenceId(undefined)} onClose={() => setWorkspaceSequenceId(undefined)} />;
   return <PageShell project={project} eyebrow="Production planning · Formal sequence contract" title="Sequence Planner" detail="Exact Project Setup ranges, story purpose, character states, assets, continuity, audio, dialogue, shots, and the approved Sequence Workspace v3 prompt pipeline.">
     {!script.scriptVersion ? <GateBlock icon={<Film size={22} />} title="Generate Full Script v2 first" detail="Formal sequence plans are derived from the same persistent Script State, not from a separate generic planner." action="Open Full Script" onClick={() => onNavigate("full_script")} /> : !script.sequences.length ? <GateBlock icon={<Film size={22} />} title={`Build ${project.sequenceCount} formal sequence plans`} detail="The planner uses the approved screenplay, exact runtime, sequence duration, assets, continuity, and audio memory." action="Plan Sequences" disabled={busy} onClick={() => void onAction("plan_sequences")} /> : <div className="formal-sequence-layout">
       <aside className="formal-sequence-rail"><header><span className="eyebrow">Project Setup authority</span><strong>{script.sequences.length} / {project.sequenceCount} sequences</strong><small>{project.runtimeMinutes} min · {project.sequenceDurationSeconds}s target</small></header>{script.sequences.map((sequence) => <button className={selected?.id === sequence.id ? "selected" : ""} onClick={() => setSelectedId(sequence.id)} key={sequence.id}><code>{pad(sequence.number)}</code><span><strong>{sequence.title}</strong><small>{sequence.timeRange} · {sequence.durationSeconds}s</small></span><em className={sequence.status.toLowerCase()}>{sequence.status}</em>{sequence.warnings.length ? <i>{sequence.warnings.length}</i> : null}</button>)}</aside>

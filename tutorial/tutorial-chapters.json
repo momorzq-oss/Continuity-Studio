@@ -1,0 +1,59 @@
+{
+  "project": "The Fire Beyond the Dunes — Tutorial Demo",
+  "brand": "Continuity Studio By BURABEEH",
+  "sourceUrl": "http://127.0.0.1:8787",
+  "videos": {
+    "full": {
+      "output": "continuity-studio-full-tutorial.mp4",
+      "audio": "audio/full-tutorial-narration.wav",
+      "captions": "captions/full-tutorial.srt",
+      "estimatedDurationSeconds": 960,
+      "chapters": [
+        { "title": "Welcome", "estimatedDurationSeconds": 30, "captures": ["01-project-setup.png", "03-production-agent-ready.png"] },
+        { "title": "Project Setup", "estimatedDurationSeconds": 65, "captures": ["01-project-setup.png", "02-project-setup-complete.png", "03-production-agent-ready.png"] },
+        { "title": "Reference-first Identity", "estimatedDurationSeconds": 40, "captures": ["04-reference-gate.png", "05-reference-setup.png", "06-character-sheet.png", "07-reference-ready.png"] },
+        { "title": "Visual Movie DNA", "estimatedDurationSeconds": 100, "captures": ["08-movie-dna-gate.png", "09-movie-dna-board.png", "10-movie-dna-recommendation.png", "11-movie-dna-ready.png", "12-movie-dna-complete.png", "13-movie-dna-locked.png"] },
+        { "title": "Story and Film Bible", "estimatedDurationSeconds": 75, "captures": ["14-story-creation-methods.png", "15-story-generated.png", "16-story-locked.png", "17-film-bible.png", "18-film-bible-approved.png"] },
+        { "title": "Characters", "estimatedDurationSeconds": 70, "captures": ["19-character-analysis-ready.png", "20-character-analysis.png", "21-character-sheet-linked.png", "22-character-states.png"] },
+        { "title": "Numbered Production Assets", "estimatedDurationSeconds": 100, "captures": ["23-asset-manifest.png", "24-asset-library.png", "25-asset-library-generated.png", "26-asset-regeneration-preview.png", "27-asset-regeneration-accepted.png", "28-assets-approved.png"] },
+        { "title": "Timeline, Continuity, and Audio", "estimatedDurationSeconds": 55, "captures": ["29-story-timeline.png", "32-audio-bible.png", "45-sequence-approved-continuity.png"] },
+        { "title": "Full Script and Dialogue Lock", "estimatedDurationSeconds": 65, "captures": ["30-full-script.png", "31-dialogue-locked.png", "33-full-script-ready.png", "34-full-script-locked.png"] },
+        { "title": "Shots and Sequences", "estimatedDurationSeconds": 60, "captures": ["35-sequence-planner.png", "36-shot-planner.png", "42-sequence-01-locked.png"] },
+        { "title": "Sequence Workspace v3", "estimatedDurationSeconds": 110, "captures": ["37-sequence-workspace-normal.png", "38-sequence-workspace-json.png", "40-platform-switch-veo.png", "41-storyboard-grid-optional.png"] },
+        { "title": "Reference Mapping and Rules", "estimatedDurationSeconds": 60, "captures": ["39-sequence-reference-package.png", "38-sequence-workspace-json.png"] },
+        { "title": "Generated Video Return", "estimatedDurationSeconds": 60, "captures": ["43-video-import-attempt.png", "44-video-attempt-history.png", "45-sequence-approved-continuity.png"] },
+        { "title": "Dashboard and Final Export", "estimatedDurationSeconds": 45, "captures": ["46-production-dashboard.png", "47-final-project-export.png"] },
+        { "title": "Complete Movie Workflow", "estimatedDurationSeconds": 25, "captures": ["46-production-dashboard.png", "47-final-project-export.png"] }
+      ]
+    },
+    "quick": {
+      "output": "continuity-studio-quick-start.mp4",
+      "audio": "audio/quick-start-narration.wav",
+      "captions": "captions/quick-start.srt",
+      "estimatedDurationSeconds": 240,
+      "chapters": [
+        { "title": "Create the Project", "estimatedDurationSeconds": 30, "captures": ["01-project-setup.png", "02-project-setup-complete.png"] },
+        { "title": "Protect Identity", "estimatedDurationSeconds": 25, "captures": ["05-reference-setup.png", "06-character-sheet.png"] },
+        { "title": "Lock Movie DNA", "estimatedDurationSeconds": 35, "captures": ["09-movie-dna-board.png", "13-movie-dna-locked.png"] },
+        { "title": "Story and Bible", "estimatedDurationSeconds": 30, "captures": ["15-story-generated.png", "18-film-bible-approved.png"] },
+        { "title": "Characters and Assets", "estimatedDurationSeconds": 35, "captures": ["22-character-states.png", "25-asset-library-generated.png", "28-assets-approved.png"] },
+        { "title": "Script, Shots, Sequences", "estimatedDurationSeconds": 30, "captures": ["34-full-script-locked.png", "36-shot-planner.png", "35-sequence-planner.png"] },
+        { "title": "Compile and Review", "estimatedDurationSeconds": 35, "captures": ["38-sequence-workspace-json.png", "39-sequence-reference-package.png", "44-video-attempt-history.png"] },
+        { "title": "Approve and Export", "estimatedDurationSeconds": 20, "captures": ["46-production-dashboard.png", "47-final-project-export.png"] }
+      ]
+    },
+    "social": {
+      "output": "continuity-studio-social-demo.mp4",
+      "audio": "audio/social-demo-narration.wav",
+      "captions": "captions/social-demo.srt",
+      "estimatedDurationSeconds": 45,
+      "chapters": [
+        { "title": "One Movie Production Brain", "estimatedDurationSeconds": 8, "captures": ["46-production-dashboard.png"] },
+        { "title": "Identity + Visual DNA", "estimatedDurationSeconds": 10, "captures": ["06-character-sheet.png", "13-movie-dna-locked.png"] },
+        { "title": "Assets + Prompts", "estimatedDurationSeconds": 10, "captures": ["25-asset-library-generated.png", "38-sequence-workspace-json.png"] },
+        { "title": "Attempts + Continuity", "estimatedDurationSeconds": 9, "captures": ["44-video-attempt-history.png", "45-sequence-approved-continuity.png"] },
+        { "title": "Complete Project Export", "estimatedDurationSeconds": 8, "captures": ["47-final-project-export.png"] }
+      ]
+    }
+  }
+}

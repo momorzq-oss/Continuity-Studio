@@ -22,7 +22,7 @@ Continuity Studio By BURABEEH es un espacio local de producción cinematográfic
 
 ## Límite de la versión
 
-La generación directa de vídeo, la importación de resultados, la inspección automática, la aprobación de intentos, la transferencia automática END→START, el panel de finalización y el montaje final no están terminados en v1.1.0. Consulta la [hoja de ruta](docs/ROADMAP.md).
+La versión actual del código fuente admite la importación del vídeo generado, el historial de intentos, las decisiones manuales de aprobación o rechazo, el bloqueo del intento aprobado, la transferencia automática del estado final aprobado al inicio de la secuencia siguiente, el panel de progreso y la exportación completa del proyecto. La generación directa en proveedores, la inspección visual automática de los píxeles del vídeo y el montaje final siguen en la [hoja de ruta](docs/ROADMAP.md).
 
 ## Instalación en español
 

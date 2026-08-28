@@ -60,6 +60,8 @@ flowchart TD
 
 Stable IDs such as `CHAR_MAIN_001` belong to the project. Tags such as `@Image 1` belong only to one provider request. The Prompt State renders both Normal and JSON forms, stores manual overrides, validates JSON, and persists profile-specific versions. Editable profiles own model duration, reference, audio, and syntax capabilities; critical references are never silently dropped.
 
+The active asset store is deliberately flat: `assets/NNN_Name.ext`. `NNN` is monotonically allocated and is never reused or renumbered. Category, role, approval, lock, version, and sequence usage live in `assets/asset_manifest.json` and the production database. Generated candidates, retained versions, and migrated legacy category trees live under `asset_history/`. Sequence packages assign their own two-digit upload order and carry a versioned manifest that maps those temporary files and provider tags back to the permanent number, filename, and Asset ID.
+
 Seedance, Higgsfield, MiniMax, Veo, Kling, Runway, Sora, and Custom are manual-handoff Platform Profiles in v1.1.0. Their presence does not imply a direct provider video API.
 
 ## Generation queue

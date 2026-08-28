@@ -67,7 +67,7 @@ const makeReferencesUsable = (project: MovieProject, sequenceId: string) => {
   for (const asset of project.production.assets) {
     if (!ids.has(asset.id)) continue;
     asset.number = sparseNumbers[sparseIndex++] ?? asset.number;
-    asset.filename = `${String(asset.number).padStart(2, "0")}_${asset.name.replace(/[^a-z0-9]+/gi, "_")}.png`;
+    asset.filename = `${String(asset.number).padStart(3, "0")}_${asset.name.replace(/[^a-z0-9]+/gi, "_")}.png`;
     asset.imagePath = `generated_images/assets/${asset.filename}`;
     asset.thumbnailPath = asset.imagePath;
     asset.status = "APPROVED";
@@ -236,10 +236,55 @@ describe("Sequence Workspace v3", () => {
     expect(selected.map((item) => item.platformUploadPosition)).toEqual(selected.map((_, index) => index + 1));
     expect(selected.map((item) => item.promptTag)).toEqual(selected.map((_, index) => `@Image ${index + 1}`));
     expect(selected.every((item) => item.packageFilename?.startsWith(String(item.platformUploadPosition).padStart(2, "0")))).toBe(true);
-    expect(manifest.references.map((item) => item.permanentProjectImageNumber)).toEqual(selected.map((item) => item.permanentProjectImageNumber));
+    expect(manifest.references.map((item) => item.project_image_number)).toEqual(selected.map((item) => item.permanentProjectImageNumber));
     expect(bundle.folderName).toBe("Sequence_01_Seedance");
     expect(bundle.files.map((item) => item.packageFilename)).toEqual(selected.filter((item) => !item.missing).map((item) => item.packageFilename));
     for (const asset of project.production.assets) expect({ number: asset.number, filename: asset.filename }).toEqual(before.get(asset.id));
+  });
+
+  it("maps Sequence 04 Project Images 002, 005, 007, and 008 to temporary @Image 1-4 in every package artifact", async () => {
+    const { project } = await createProject();
+    const sequence = project.memory.productionMemory.script.sequences.find((item) => item.id === "SEQ_04")!;
+    const chosenNumbers = [2, 5, 7, 8];
+    const chosen = chosenNumbers.map((number) => project.production.assets.find((asset) => asset.number === number)!);
+    expect(chosen.every(Boolean)).toBe(true);
+    for (const asset of chosen) {
+      asset.imagePath = `assets/${asset.filename}`;
+      asset.thumbnailPath = asset.imagePath;
+      asset.status = "APPROVED";
+    }
+    sequence.characterIds = [];
+    sequence.characterStateIds = [];
+    sequence.locationId = chosen.at(-1)!.id;
+    sequence.assetRequirements = chosen.map((asset) => ({ assetId: asset.id, required: true, resolved: true, reason: `Sequence 04 requires Project Image ${String(asset.number).padStart(3, "0")}.` }));
+
+    const record = compileSequencePrompt(project, "SEQ_04", "Seedance");
+    const selected = record.state.references.filter((reference) => reference.selected);
+    expect(selected.map((reference) => reference.permanentProjectImageNumber)).toEqual(chosenNumbers);
+    expect(selected.map((reference) => reference.platformUploadPosition)).toEqual([1, 2, 3, 4]);
+    expect(selected.map((reference) => reference.promptTag)).toEqual(["@Image 1", "@Image 2", "@Image 3", "@Image 4"]);
+    expect(selected.map((reference) => reference.packageFilename)).toEqual(chosen.map((asset, index) => `${String(index + 1).padStart(2, "0")}_${asset.filename.replace(/^\d+_/, "")}`));
+
+    const parsed = JSON.parse(record.jsonPrompt);
+    expect(parsed.references.filter((reference: { selected: boolean }) => reference.selected).map((reference: { platformUploadPosition: number }) => reference.platformUploadPosition)).toEqual([1, 2, 3, 4]);
+    expect(record.normalPrompt.indexOf("@Image 1")).toBeLessThan(record.normalPrompt.indexOf("@Image 2"));
+    expect(record.normalPrompt.indexOf("@Image 2")).toBeLessThan(record.normalPrompt.indexOf("@Image 3"));
+    expect(record.normalPrompt.indexOf("@Image 3")).toBeLessThan(record.normalPrompt.indexOf("@Image 4"));
+
+    const bundle = sequenceReferencePackage(project, "SEQ_04", "Seedance");
+    expect(bundle.folderName).toBe("Sequence_04_Seedance");
+    expect(bundle.manifest).toMatchObject({ schema_version: 2, sequence: 4, sequence_id: "SEQ_04", platform: "Seedance" });
+    expect(bundle.manifest.references.map((reference) => ({
+      project: reference.project_image_number,
+      upload: reference.upload_position,
+      tag: reference.prompt_tag,
+      file: reference.package_filename,
+    }))).toEqual(chosen.map((asset, index) => ({
+      project: asset.number,
+      upload: index + 1,
+      tag: `@Image ${index + 1}`,
+      file: `${String(index + 1).padStart(2, "0")}_${asset.filename.replace(/^\d+_/, "")}`,
+    })));
   });
 
   it("blocks over-limit mappings and missing images until the user chooses an explicit safe mode", async () => {

@@ -61,7 +61,7 @@ export const api = {
   uploadSequenceVideo: async (projectId: string, sequenceId: string, file: File) => {
     const response = await fetch(`/api/projects/${projectId}/sequences/${sequenceId}/video`, {
       method: "POST",
-      headers: { "Content-Type": file.type || "video/mp4" },
+      headers: { "Content-Type": file.type || "video/mp4", "X-Filename": encodeURIComponent(file.name) },
       body: file,
     });
     const payload = (await response.json().catch(() => ({}))) as MovieProject & { error?: string };

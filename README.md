@@ -16,7 +16,7 @@ The application is designed around one difficult production problem: keeping **i
 
 ## Current release: v1.1.0
 
-v1.1.0 is a production-planning and prompt-compilation release. It includes the complete workflow through Sequence Workspace v3 and manual provider handoff. Direct provider video generation, generated-video import, automatic video inspection, attempt approval, and final movie assembly remain roadmap work and are not presented as finished features.
+v1.1.0 is a production-planning and prompt-compilation release. The current source build extends that workflow through generated-video import, attempt history, manual review decisions, approved End State transfer, the movie progress dashboard, and complete project export. Direct provider video generation, automated visual inspection of video pixels, and final movie assembly remain roadmap work and are not presented as finished features.
 
 ### Working now
 
@@ -26,11 +26,13 @@ v1.1.0 is a production-planning and prompt-compilation release. It includes the 
 - Integrated AI Filmmaking Visual Guide principles for identity locks, neutral character sheets, unique reference numbering, concise prompts, storyboard continuity, and reference-aware video prompting.
 - Story v2 with AI First, Reference First, and Hybrid creation; Full Story, Story Structure, Timeline, Character Arcs, and exact Sequence Breakdown views.
 - Film Bible, Character Analysis, protected main-character references, adaptive character sheets, and per-sequence character states.
-- Numbered Asset Manifest, Image Asset Library, asset inspection, targeted prompt editing, versions, approvals, and locks.
+- Flat, permanently numbered Project Image storage, a numbered Asset Manifest, Image Asset Library, asset inspection, targeted prompt editing, versions, approvals, and locks.
 - Full Script v2 with screenplay, dialogue-only, shot-script, production-script, scene, and sequence views.
 - Sequence Workspace v3 with Previous/Next navigation, editable Normal Prompt and JSON Prompt, live canonical state, validation, saved versions, optional Storyboard Grid, and persistence.
 - Versioned platform profiles for Seedance, Higgsfield, MiniMax, Veo, Kling, Runway, Sora, and Custom without hard-coding one provider's limits globally.
 - Stable reference IDs, provider-specific `@Image` numbering, upload order, reference slot mapping, and downloadable sequence reference packages.
+- Generated-video import with sequence, platform, prompt/JSON version, references, attempt, date, filename, and duration metadata; preserved rejection history; approval locks; and automatic approved End State to next Start State transfer.
+- A movie progress dashboard for approved, ready, blocked, rejected, waiting, missing-asset, prompt-warning, and continuity-warning totals.
 - Film Brain rules, Continuity Ledger, Audio Bible, Production Agent, diagnostics, local JSON/Markdown/media storage, and ZIP export.
 - Built-in offline planning and deterministic PNG previsuals, optional Codex supervision, optional OpenAI text generation, and optional OpenAI-compatible local text models.
 
@@ -49,10 +51,19 @@ flowchart TD
   I --> J[Compile Normal and JSON prompts]
   J --> K[Map and package references]
   K --> L[Generate video manually in selected platform]
-  L --> M[Generated-video import and review - roadmap]
+  L --> M[Import generated video and preserve attempt history]
+  M --> N[Approve reject or regenerate with notes]
+  N --> O[Transfer approved End State to next Start State]
+  O --> P[Dashboard and complete project ZIP]
 ```
 
 See the detailed [production workflow](docs/WORKFLOW.md) and [user guide](docs/USER_GUIDE.md).
+
+## Permanent Project Image storage
+
+Every active production image has one permanent number, ID, three-digit filename, and flat path such as `assets/007_Bedouin_Camp.png`. Categories are metadata, not storage folders. Regeneration stages candidates under `asset_history/`, then replaces the contents of the same active filename only after acceptance; its number, filename, ID, approvals, locks, sequence usage, and prompt relationships do not change.
+
+Sequence packages use separate temporary upload numbering. For example, Project Images `002`, `005`, `007`, and `008` can become `@Image 1` through `@Image 4` with package files `01_Name.ext` through `04_Name.ext`. Each package includes `prompt.txt`, `prompt.json`, and `reference_manifest.json`, which maps every temporary position back to its permanent Project Image identity.
 
 ## Screenshots
 
@@ -110,8 +121,9 @@ For non-interactive setup, append `--yes`. See [Installation](docs/INSTALLATION.
 6. Build Full Script v2, verify exact dialogue, then plan shots and timed sequences.
 7. Open a sequence. Choose a Platform Profile, edit the Normal or JSON Prompt, validate, and save a prompt version.
 8. Review `@Image` numbering and upload order, then download or copy the sequence reference package.
-9. Generate the video in the provider's own product. Generated-video import and automated continuity review are the next planned production blocks.
-10. Export the structured project ZIP at any time.
+9. Generate the video in the provider's own product, import it into the same sequence, then approve, reject, or regenerate it with a recorded reason.
+10. Lock the accepted attempt so its approved End State becomes the next sequence Start State. Rejected attempts never update permanent continuity.
+11. Review the movie progress dashboard, then export the structured project ZIP.
 
 ## Provider status
 
@@ -145,6 +157,7 @@ Provider names describe compatible prompt workflows. They do not imply sponsorsh
 - [Platform Profiles and Limitations](PLATFORMS.md) · [Provider Development](docs/PROVIDER_DEVELOPMENT.md)
 - [Main Character Tutorial](docs/MAIN_CHARACTER_TUTORIAL.md) · [Asset Tutorial](docs/ASSET_TUTORIAL.md) · [Scene Tutorial](docs/SCENE_TUTORIAL.md)
 - [Complete Movie Tutorial](docs/COMPLETE_MOVIE_TUTORIAL.md) · [AI Filmmaking Visual Guide Knowledge](docs/AI_FILMMAKING_VISUAL_GUIDE_KNOWLEDGE.md)
+- [Narrated Tutorial Production](tutorial/README.md) · [Voiceover Script](tutorial/voiceover-script.txt) · [Tutorial Shot List](tutorial/tutorial-shot-list.md)
 - [Languages](docs/LANGUAGES.md) · [About BURABEEH](docs/ABOUT_BURABEEH.md)
 - [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Code of Conduct](CODE_OF_CONDUCT.md)
 

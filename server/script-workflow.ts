@@ -204,23 +204,48 @@ const dialogueTimingWarning = (line: ScriptDialogueLine) => {
 const dialogueForSequence = (project: MovieProject, version: number, number: number, sceneId: string, characterIds: string[], purpose: string, previous: ScriptDialogueLine[]) => {
   if (!project.dialogueEnabled || !project.memory.productionMemory.audioBible.dialogueEnabled || !characterIds.length) return [];
   const speaker = characterIds[0]!;
-  const locked = previous.find((line) => sequenceNumber(line.sequenceId) === number && line.speakerCharacterId === speaker && line.lockState === "LOCKED");
-  if (locked) return [{ ...clone(locked), sequenceId: sequenceId(number), sceneId, sourceScriptVersion: version, updatedAt: now() }];
   const voice = project.memory.productionMemory.audioBible.voiceProfiles.find((profile) => profile.characterId === speaker);
+  const locked = previous.find((line) => sequenceNumber(line.sequenceId) === number && line.speakerCharacterId === speaker && line.lockState === "LOCKED");
+  if (locked) {
+    const preserved = {
+      ...clone(locked),
+      sequenceId: sequenceId(number),
+      sceneId,
+      sourceScriptVersion: version,
+      audioVoiceProfileId: voice?.id ?? locked.audioVoiceProfileId,
+      updatedAt: now(),
+    };
+    if (preserved.timingWarning) {
+      const endSeconds = Math.min(12, project.sequenceDurationSeconds - 1);
+      const estimatedSpeechSeconds = Math.max(1, preserved.exactDialogue.trim().split(/\s+/).filter(Boolean).length / 2.4);
+      const availableSpeechSeconds = Math.min(Math.max(1, endSeconds - 1), Math.max(3, Math.ceil(estimatedSpeechSeconds + 0.5)));
+      preserved.timing = { startSeconds: Math.max(1, endSeconds - availableSpeechSeconds), endSeconds, label: "" };
+      preserved.timing.label = timeRange(preserved.timing.startSeconds, preserved.timing.endSeconds);
+      dialogueTimingWarning(preserved);
+    }
+    return [preserved];
+  }
   const createdAt = now();
+  const exactDialogue = dialogueSeed(project, number, purpose);
+  const endSeconds = Math.min(12, project.sequenceDurationSeconds - 1);
+  const estimatedSpeechSeconds = Math.max(1, exactDialogue.trim().split(/\s+/).filter(Boolean).length / 2.4);
+  const availableSpeechSeconds = Math.min(
+    Math.max(1, endSeconds - 1),
+    Math.max(3, Math.ceil(estimatedSpeechSeconds + 0.5)),
+  );
   const line: ScriptDialogueLine = {
     id: `DLG_${pad(number)}_01`,
     sequenceId: sequenceId(number),
     sceneId,
     speakerCharacterId: speaker,
-    exactDialogue: dialogueSeed(project, number, purpose),
+    exactDialogue,
     language: project.memory.productionMemory.audioBible.dialogueLanguage || project.dialogueLanguage,
     accent: voice?.accent || "Project-defined accent",
     emotion: characterForStoryId(project, speaker)?.states.find((state) => sequenceNumber(state.sequenceId) === number)?.emotional || "Story-matched",
     delivery: voice?.deliveryStyle || "Natural dramatic delivery",
     pronunciation: [...(voice?.pronunciationRules ?? [])],
     volume: voice?.volumeTendencies || "Natural conversational level",
-    timing: { startSeconds: Math.min(8, Math.max(1, project.sequenceDurationSeconds - 4)), endSeconds: Math.min(12, project.sequenceDurationSeconds - 1), label: "" },
+    timing: { startSeconds: Math.max(1, endSeconds - availableSpeechSeconds), endSeconds, label: "" },
     approvalState: "DRAFT",
     lockState: "UNLOCKED",
     sourceScriptVersion: version,

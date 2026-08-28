@@ -5,6 +5,8 @@ import type {
   ImageGenerationJob,
   ImageGenerationTarget,
   MovieProject,
+  ProductionAssetCategory,
+  ProductionAssetRecord,
   SceneAsset,
   SequencesArtifact,
   StoryboardFrameAsset,
@@ -12,26 +14,25 @@ import type {
 import type { ImageGenerationProvider } from "./image-generation/provider.js";
 import { LocalReferenceImageProvider } from "./image-generation/local-provider.js";
 import { lockedMovieDnaPrompt } from "./production-workflow.js";
-import { manifestCategoryFolder, newAttemptId, syncManifestRuntime } from "./asset-manifest.js";
+import { newAttemptId, syncManifestRuntime } from "./asset-manifest.js";
+import { permanentAssetFilename, projectImageNumberLabel } from "./asset-storage.js";
 import type { ProjectStore } from "./store.js";
 
 const stamp = () => new Date().toISOString();
 const fileToken = (value: string) => value.toLowerCase().replace(/[^a-z0-9_-]+/g, "-");
-const assetFolder = (asset: AssetEntity, mainId?: string) => {
-  if (asset.manifestCategory) return manifestCategoryFolder(asset.manifestCategory);
-  if (asset.id === "CHAR_MAIN_001" || asset.sourceReferenceIds.includes(mainId ?? "__none__")) return "main_character";
-  if (asset.category === "character") return "characters";
-  if (asset.category === "creature") return "creatures";
-  if (asset.category === "animal") return "animals";
-  if (asset.category === "location") return "locations";
-  if (asset.category === "building") return "buildings";
-  if (asset.category === "room" || asset.category === "interior") return "rooms";
-  if (asset.category === "vehicle") return "vehicles";
-  if (asset.category === "weapon") return "weapons";
-  if (asset.category === "wardrobe" || asset.category === "costume") return "costumes";
-  if (asset.category === "accessory") return "accessories";
-  if (asset.category === "object") return "objects";
-  return "props";
+const manifestCategoryFor = (asset: AssetEntity): ProductionAssetCategory => {
+  if (asset.manifestCategory) return asset.manifestCategory;
+  if (asset.category === "character") return "character";
+  if (asset.category === "creature") return "creature";
+  if (asset.category === "animal") return "animal";
+  if (["location", "interior", "building", "room"].includes(asset.category)) return asset.category === "interior" ? "set" : asset.category as ProductionAssetCategory;
+  if (asset.category === "vehicle") return "vehicle";
+  if (asset.category === "weapon") return "weapon";
+  if (["wardrobe", "costume"].includes(asset.category)) return "costume";
+  if (asset.category === "accessory") return "accessory";
+  if (asset.category === "effect") return "vfx";
+  if (["object", "tool", "tack"].includes(asset.category)) return "prop";
+  return "other";
 };
 
 export class AssetMaker {
@@ -43,6 +44,49 @@ export class AssetMaker {
   }
 
   private readonly provider: ImageGenerationProvider;
+
+  private ensureProductionRecord(project: MovieProject, asset: AssetEntity): ProductionAssetRecord {
+    const existing = project.production.assets.find((item) => item.id === asset.id);
+    if (existing) return existing;
+    const timestamp = stamp();
+    const number = project.production.nextProjectImageNumber++;
+    const category = manifestCategoryFor(asset);
+    const record: ProductionAssetRecord = {
+      id: asset.id,
+      number,
+      filename: permanentAssetFilename(number, asset.name, "png"),
+      name: asset.name,
+      category,
+      description: asset.description,
+      continuityNotes: [...asset.notes],
+      sequenceIds: [...(asset.sequenceIds ?? [])],
+      referenceIds: [...asset.sourceReferenceIds],
+      version: Math.max(1, asset.version),
+      status: asset.approvalState,
+      previousVersions: [],
+      storyPurpose: asset.storyPurpose ?? "Registered production image required by the active asset manifest.",
+      sourceStoryVersion: project.production.story.approvedVersion ?? project.production.story.version,
+      sourceFilmBibleVersion: project.production.filmBible.approvedVersion ?? project.production.filmBible.version,
+      movieDnaVersion: project.production.movieDna.version,
+      dependencyIds: [...(asset.dependencyIds ?? [])],
+      referenceRoles: [category === "character" ? "IDENTITY" : category === "location" ? "LOCATION" : "CONTINUITY"],
+      sourceType: "STORY",
+      required: asset.critical,
+      canGenerate: true,
+      generationPrompt: asset.generationPrompt,
+      negativePrompt: asset.negativePrompt,
+      generationAttempts: [],
+      versionHistory: [],
+      referenceUsage: [],
+      createdAt: timestamp,
+      updatedAt: timestamp,
+    };
+    project.production.assets.push(record);
+    asset.projectNumber = number;
+    asset.permanentFilename = record.filename;
+    asset.manifestCategory = category;
+    return record;
+  }
 
   reconcileProtectedReferences(project: MovieProject) {
     const database = project.memory.database;
@@ -99,7 +143,15 @@ export class AssetMaker {
       const record = project.production.assets.find((item) => item.id === asset.id);
       if (record?.canGenerate === false) continue;
       if (force && record?.status === "LOCKED" && asset.generatedImagePath) continue;
-      if (force || !asset.generatedImagePath) await this.generateAsset(project, asset.id, force);
+      const activeFileExists = asset.generatedImagePath
+        ? await this.store.projectFileExists(project.id, asset.generatedImagePath)
+        : false;
+      const needsMaster = force
+        || !asset.generatedImagePath
+        || !activeFileExists
+        || asset.approvalState === "GENERATION_FAILED"
+        || record?.status === "GENERATION_FAILED";
+      if (needsMaster) await this.generateAsset(project, asset.id, force);
       if (asset.generatedImagePath && !record?.pendingVersion) await this.generateContinuitySheet(project, asset.id, force);
     }
     syncManifestRuntime(project);
@@ -109,8 +161,8 @@ export class AssetMaker {
   async generateAsset(project: MovieProject, assetId: string, force = false, impactMode?: "FUTURE_ONLY" | "APPLY_ALL") {
     const asset = project.memory.database.assets.find((item) => item.id === assetId);
     if (!asset) throw new Error(`Asset ${assetId} was not found.`);
-    const record = project.production.assets.find((item) => item.id === assetId);
-    if (record?.canGenerate === false) throw new Error(`${record.name} is a protected source asset and cannot be generated or overwritten.`);
+    const record = this.ensureProductionRecord(project, asset);
+    if (record.canGenerate === false) throw new Error(`${record.name} is a protected source asset and cannot be generated or overwritten.`);
     const activeFileExists = asset.generatedImagePath ? await this.store.projectFileExists(project.id, asset.generatedImagePath) : false;
     if (!force && activeFileExists) return asset;
     const stagedReplacement = Boolean(force && activeFileExists);
@@ -131,19 +183,24 @@ export class AssetMaker {
       createdAt: stamp(),
     } : undefined;
     if (attempt) (record!.generationAttempts ??= []).push(attempt);
-    const outputBase = `assets/${assetFolder(asset, project.preStorySetup.mainCharacterReferenceId)}/generated/${fileToken(asset.id)}-v${targetVersion}`;
+    const outputBase = `asset_history/generated/${record ? projectImageNumberLabel(record.number) : "unmanaged"}_${fileToken(asset.id)}-v${targetVersion}`;
     const dependencyPaths = (record?.dependencyIds ?? []).flatMap((dependencyId) => {
       const dependencyRecord = project.production.assets.find((item) => item.id === dependencyId);
       const dependencyEntity = project.memory.database.assets.find((item) => item.id === dependencyId);
       return [dependencyRecord?.imagePath, dependencyEntity?.generatedImagePath];
     }).filter((value): value is string => Boolean(value));
+    const candidateReferencePaths = [...asset.referenceImages, ...dependencyPaths];
+    const referencePaths = (await Promise.all(candidateReferencePaths.map(async (referencePath) => ({
+      referencePath,
+      exists: await this.store.projectFileExists(project.id, referencePath),
+    })))).filter((item) => item.exists).map((item) => item.referencePath);
     const job = await this.runJob(project, {
       targetType: "ASSET_MASTER",
       targetId: asset.id,
       prompt: record?.generationPrompt || asset.generationPrompt,
       negativePrompt: asset.negativePrompt,
       referenceIds: asset.sourceReferenceIds,
-      referencePaths: [...asset.referenceImages, ...dependencyPaths],
+      referencePaths,
       width: 512,
       height: 512,
       outputBase,
@@ -194,10 +251,13 @@ export class AssetMaker {
       }
       return asset;
     }
+    const activePath = record
+      ? await this.store.activateProductionAssetFile(project.id, record.filename, job.resultPath!)
+      : job.resultPath;
     asset.version = targetVersion;
-    asset.generatedImagePath = job.resultPath;
+    asset.generatedImagePath = activePath;
     asset.thumbnailPath = job.thumbnailPath;
-    asset.referenceImages = [...new Set([...(asset.sourceReferenceIds.length ? asset.referenceImages : []), job.resultPath!])];
+    asset.referenceImages = [...new Set([...(asset.sourceReferenceIds.length ? asset.referenceImages : []), activePath!])];
     asset.provider = job.provider;
     asset.model = job.model;
     asset.generationError = undefined;
@@ -205,7 +265,7 @@ export class AssetMaker {
     asset.updatedAt = stamp();
     if (record) {
       record.version = targetVersion;
-      record.imagePath = job.resultPath;
+      record.imagePath = activePath;
       record.thumbnailPath = job.thumbnailPath;
       record.provider = job.provider;
       record.model = job.model;
@@ -258,24 +318,28 @@ export class AssetMaker {
     const previousStatus = record.status;
     if (previousImage) {
       record.previousVersions.push({ version: record.version, description: record.description, createdAt: stamp() });
-      const history = (record.versionHistory ??= []).find((item) => item.version === record.version && item.imagePath === previousImage);
-      if (history) history.fileRetained = false;
-      else record.versionHistory.push({
+      const history = (record.versionHistory ??= []).find((item) => item.version === record.version && item.fileRetained);
+      if (!history) {
+        const archivedPath = await this.store.archiveProductionAssetFile(project.id, record.filename, record.version, previousImage);
+        record.versionHistory.push({
         version: record.version, description: record.description, prompt: record.generationPrompt || asset.generationPrompt,
-        imagePath: previousImage, thumbnailPath: previousThumbnail, provider: asset.provider, model: asset.model,
-        status: previousStatus, createdAt: asset.updatedAt, activatedAt: asset.updatedAt, fileRetained: false,
-      });
+          imagePath: archivedPath, thumbnailPath: previousThumbnail, provider: asset.provider, model: asset.model,
+          status: previousStatus, createdAt: asset.updatedAt, activatedAt: asset.updatedAt, fileRetained: true,
+        });
+      }
     }
+    const activePath = await this.store.activateProductionAssetFile(project.id, record.filename, candidate.imagePath);
     asset.version = candidate.version;
-    asset.generatedImagePath = candidate.imagePath;
+    asset.generatedImagePath = activePath;
     asset.thumbnailPath = candidate.thumbnailPath;
     asset.provider = candidate.provider;
     asset.model = candidate.model;
+    asset.referenceImages = [...new Set([...(asset.sourceReferenceIds.length ? asset.referenceImages.filter((item) => item !== previousImage) : []), activePath])];
     asset.generationError = undefined;
     asset.approvalState = ["APPROVED", "LOCKED"].includes(previousStatus) ? previousStatus : "REVIEW";
     asset.updatedAt = stamp();
     record.version = candidate.version;
-    record.imagePath = candidate.imagePath;
+    record.imagePath = activePath;
     record.thumbnailPath = candidate.thumbnailPath;
     record.provider = candidate.provider;
     record.model = candidate.model;
@@ -302,8 +366,6 @@ export class AssetMaker {
       sheet.views.forEach((view) => { view.imagePath = undefined; view.status = "PLANNED"; });
       sheet.updatedAt = stamp();
     }
-    if (previousImage && previousImage !== candidate.imagePath) await this.store.removeProjectFile(project.id, previousImage);
-    if (previousThumbnail && previousThumbnail !== candidate.thumbnailPath) await this.store.removeProjectFile(project.id, previousThumbnail);
     syncManifestRuntime(project);
     return asset;
   }
@@ -366,7 +428,7 @@ export class AssetMaker {
     }
     for (const view of sheet.views) {
       if (view.imagePath && !force) continue;
-      const base = `assets/${assetFolder(asset, project.preStorySetup.mainCharacterReferenceId)}/generated/${fileToken(asset.id)}-sheet-${view.angle.toLowerCase()}-v${sheet.version}`;
+      const base = `asset_history/sheets/${projectImageNumberLabel(asset.projectNumber ?? 0)}_${fileToken(asset.id)}-sheet-${view.angle.toLowerCase()}-v${sheet.version}`;
       const job = await this.runJob(project, {
         targetType: "SHEET_VIEW",
         targetId: view.id,

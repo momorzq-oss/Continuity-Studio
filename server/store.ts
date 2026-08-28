@@ -1,6 +1,7 @@
 import { randomUUID } from "node:crypto";
 import {
   copyFile,
+  cp,
   mkdir,
   readFile,
   readdir,
@@ -35,6 +36,12 @@ import {
   migrateProject,
 } from "./project-schema.js";
 import { createProductionWorkflow } from "./production-workflow.js";
+import {
+  activeAssetManifest,
+  assetHistoryManifest,
+  flatAssetRelativePath,
+  normalizePermanentAssetFilename,
+} from "./asset-storage.js";
 
 const PROJECT_FOLDERS = [
   "film_bible",
@@ -43,19 +50,9 @@ const PROJECT_FOLDERS = [
   "script",
   "sequences",
   "assets",
-  "assets/main_character/generated",
-  "assets/characters/generated",
-  "assets/creatures/generated",
-  "assets/locations/generated",
-  "assets/buildings/generated",
-  "assets/rooms/generated",
-  "assets/vehicles/generated",
-  "assets/props/generated",
-  "assets/weapons/generated",
-  "assets/animals/generated",
-  "assets/costumes/generated",
-  "assets/accessories/generated",
-  "assets/objects/generated",
+  "asset_history/generated",
+  "asset_history/sheets",
+  "asset_history/thumbnails",
   "references/uploads",
   "references/thumbnails",
   "model_profiles",
@@ -79,6 +76,11 @@ const PROJECT_FOLDERS = [
   "timeline",
   "audio",
   "final",
+] as const;
+
+const LEGACY_ASSET_CATEGORY_FOLDERS = [
+  "movie_dna", "main_character", "characters", "character_states", "creatures", "animals", "locations", "sets",
+  "buildings", "rooms", "props", "vehicles", "weapons", "costumes", "accessories", "makeup", "vfx", "environment", "objects", "other",
 ] as const;
 
 export class ProjectNotFoundError extends Error {}
@@ -137,6 +139,7 @@ const phasePaths: Record<PhaseId, string[]> = {
 
 export class ProjectStore {
   private readonly saveQueues = new Map<string, Promise<void>>();
+  private readonly pendingActiveAssetPaths = new Map<string, Set<string>>();
 
   constructor(readonly rootDir: string) {}
 
@@ -221,13 +224,18 @@ export class ProjectStore {
       const filePath = path.join(projectRoot, "project.json");
       const file = await readFile(filePath, "utf8");
       const migration = migrateProject(JSON.parse(file));
-      if (migration.changed) {
+      const storageChanged = await this.syncFlatProductionAssets(migration.project);
+      if (migration.changed || storageChanged) {
         const backup = path.join(
           projectRoot,
           `project.json.backup-v${migration.fromVersion}-${Date.now()}`,
         );
         await copyFile(filePath, backup);
         await this.atomicWrite(filePath, json(migration.project));
+        await Promise.all([
+          this.writeProductionDatabase(migration.project),
+          this.writeProductionWorkflow(migration.project),
+        ]);
       }
       return migration.project;
     } catch (error) {
@@ -270,6 +278,7 @@ export class ProjectStore {
   async saveProject(project: MovieProject) {
     const root = this.projectPath(project.id);
     await mkdir(root, { recursive: true });
+    await this.syncFlatProductionAssets(project);
     project.updatedAt = new Date().toISOString();
     const filePath = path.join(root, "project.json");
     const previous = this.saveQueues.get(project.id) ?? Promise.resolve();
@@ -338,6 +347,8 @@ export class ProjectStore {
       this.atomicWrite(path.join(root, "film_bible", "versions.json"), json(workflow.filmBible.history)),
       this.atomicWrite(path.join(root, "film_bible", "source_context.json"), json(workflow.filmBible.sourceContext ?? {})),
       this.atomicWrite(path.join(root, "assets", "numbered_manifest.json"), json(workflow.assets)),
+      this.atomicWrite(path.join(root, "assets", "asset_manifest.json"), json(activeAssetManifest(project))),
+      this.atomicWrite(path.join(root, "asset_history", "asset_history.json"), json(assetHistoryManifest(project))),
       this.atomicWrite(path.join(root, "character_sheets", "characters.json"), json(workflow.characters)),
       this.atomicWrite(path.join(root, "character_sheets", "identity_registry.json"), json(workflow.characters.map((character) => ({ id: character.id, storyCandidateId: character.storyCandidateId, name: character.name, category: character.category, identitySource: character.identitySource, referenceIds: character.referenceIds, sheetId: character.sheetId, sheetStatus: character.sheetStatus, version: character.version, status: character.status })))),
       this.atomicWrite(path.join(root, "character_sheets", "story_states.json"), json(workflow.characters.flatMap((character) => character.states.map((state) => ({ characterId: character.id, ...state }))))),
@@ -499,6 +510,177 @@ export class ProjectStore {
 
   async removeProjectFile(projectId: string, relativePath: string) {
     await rm(this.resolveProjectFile(projectId, relativePath), { force: true });
+  }
+
+  async activateProductionAssetFile(projectId: string, filename: string, sourcePath: string) {
+    const targetPath = flatAssetRelativePath(filename);
+    const source = this.resolveProjectFile(projectId, sourcePath);
+    const target = this.resolveProjectFile(projectId, targetPath);
+    const pending = this.pendingActiveAssetPaths.get(projectId) ?? new Set<string>();
+    pending.add(targetPath);
+    this.pendingActiveAssetPaths.set(projectId, pending);
+    if (source !== target) {
+      await mkdir(path.dirname(target), { recursive: true });
+      await copyFile(source, target);
+    }
+    return targetPath;
+  }
+
+  async archiveProductionAssetFile(projectId: string, filename: string, version: number, sourcePath: string) {
+    const extension = path.extname(filename) || path.extname(sourcePath) || ".png";
+    const stem = path.basename(filename, path.extname(filename));
+    const historyPath = `asset_history/generated/${stem}-v${version}-archived${extension}`;
+    const source = this.resolveProjectFile(projectId, sourcePath);
+    const target = this.resolveProjectFile(projectId, historyPath);
+    if (source !== target) {
+      await mkdir(path.dirname(target), { recursive: true });
+      await copyFile(source, target);
+    }
+    return historyPath;
+  }
+
+  private async syncFlatProductionAssets(project: MovieProject) {
+    let changed = false;
+    const records = [...project.production.assets].sort((left, right) => left.number - right.number);
+    await mkdir(path.join(this.projectPath(project.id), "assets"), { recursive: true });
+
+    for (const record of records) {
+      const entity = project.memory.database.assets.find((item) => item.id === record.id);
+      const normalizedFilename = normalizePermanentAssetFilename(record.number, record.filename, record.name);
+      if (record.filename !== normalizedFilename) {
+        record.filename = normalizedFilename;
+        changed = true;
+      }
+      const targetPath = flatAssetRelativePath(record.filename);
+      const sourcePath = record.imagePath ?? entity?.generatedImagePath;
+      if (sourcePath && sourcePath !== targetPath && await this.projectFileExists(project.id, sourcePath)) {
+        await this.activateProductionAssetFile(project.id, record.filename, sourcePath);
+      }
+      const targetExists = await this.projectFileExists(project.id, targetPath);
+      if (sourcePath && targetExists) {
+        this.pendingActiveAssetPaths.get(project.id)?.delete(targetPath);
+        if (record.imagePath !== targetPath) {
+          record.imagePath = targetPath;
+          changed = true;
+        }
+        if (entity) {
+          if (entity.generatedImagePath !== targetPath) changed = true;
+          entity.generatedImagePath = targetPath;
+          entity.referenceImages = [...new Set([...entity.referenceImages, targetPath])];
+        }
+      } else if (!sourcePath && targetExists) {
+        // A long-running generation can write the flat active file before its
+        // metadata commit. A concurrent read may therefore observe an older
+        // project snapshot with no sourcePath. Reads must never archive or
+        // delete a permanent production image; explicit asset/version actions
+        // own lifecycle changes. The next committed read reconnects the file.
+        continue;
+      }
+      if (entity) {
+        if (entity.projectNumber !== record.number || entity.permanentFilename !== record.filename) changed = true;
+        entity.projectNumber = record.number;
+        entity.permanentFilename = record.filename;
+      }
+      const master = project.production.movieDna.masterFrame;
+      if (master?.assetId === record.id) {
+        if (master.projectNumber !== record.number || master.filename !== record.filename || (record.imagePath && master.path !== record.imagePath)) changed = true;
+        master.projectNumber = record.number;
+        master.filename = record.filename;
+        if (record.imagePath) master.path = record.imagePath;
+      }
+    }
+
+    for (const grid of Object.values(project.production.storyboardGrids)) {
+      if (grid.projectImageNumber === undefined || !grid.permanentFilename) continue;
+      const normalizedFilename = normalizePermanentAssetFilename(grid.projectImageNumber, grid.permanentFilename, `Sequence_${String(grid.sequenceNumber).padStart(2, "0")}_Storyboard_Grid`);
+      if (grid.permanentFilename !== normalizedFilename) {
+        grid.permanentFilename = normalizedFilename;
+        changed = true;
+      }
+      const targetPath = flatAssetRelativePath(grid.permanentFilename);
+      if (grid.imagePath && grid.imagePath !== targetPath && await this.projectFileExists(project.id, grid.imagePath)) {
+        await this.activateProductionAssetFile(project.id, grid.permanentFilename, grid.imagePath);
+      }
+      if (await this.projectFileExists(project.id, targetPath) && grid.imagePath !== targetPath) {
+        grid.imagePath = targetPath;
+        changed = true;
+      }
+    }
+
+    const projectRoot = this.projectPath(project.id);
+    for (const folder of LEGACY_ASSET_CATEGORY_FOLDERS) {
+      const source = path.join(projectRoot, "assets", folder);
+      try {
+        if (!(await stat(source)).isDirectory()) continue;
+      } catch {
+        continue;
+      }
+      const destination = path.join(projectRoot, "asset_history", "legacy", folder);
+      await mkdir(path.dirname(destination), { recursive: true });
+      await cp(source, destination, { recursive: true, force: false, errorOnExist: false });
+      await rm(source, { recursive: true, force: true });
+      changed = true;
+    }
+
+    const legacyFolders = new Set<string>(LEGACY_ASSET_CATEGORY_FOLDERS);
+    const rewriteLegacyPath = (value: string | undefined) => {
+      if (!value) return value;
+      const normalized = value.replaceAll("\\", "/");
+      const match = normalized.match(/^assets\/([^/]+)\/(.+)$/);
+      if (!match || !legacyFolders.has(match[1]!)) return value;
+      changed = true;
+      return `asset_history/legacy/${match[1]}/${match[2]}`;
+    };
+    for (const record of records) {
+      record.thumbnailPath = rewriteLegacyPath(record.thumbnailPath);
+      for (const version of record.versionHistory ?? []) {
+        version.imagePath = rewriteLegacyPath(version.imagePath);
+        version.thumbnailPath = rewriteLegacyPath(version.thumbnailPath);
+      }
+      for (const attempt of record.generationAttempts ?? []) {
+        attempt.imagePath = rewriteLegacyPath(attempt.imagePath);
+        attempt.thumbnailPath = rewriteLegacyPath(attempt.thumbnailPath);
+      }
+      if (record.pendingVersion) {
+        record.pendingVersion.imagePath = rewriteLegacyPath(record.pendingVersion.imagePath)!;
+        record.pendingVersion.thumbnailPath = rewriteLegacyPath(record.pendingVersion.thumbnailPath);
+      }
+      const entity = project.memory.database.assets.find((item) => item.id === record.id);
+      if (entity) {
+        entity.thumbnailPath = rewriteLegacyPath(entity.thumbnailPath);
+        entity.referenceImages = [...new Set(entity.referenceImages.map((item) => rewriteLegacyPath(item)!))];
+      }
+    }
+    for (const sheet of project.memory.database.continuitySheets) {
+      for (const view of sheet.views) view.imagePath = rewriteLegacyPath(view.imagePath);
+    }
+    for (const job of project.memory.database.imageGenerationJobs) {
+      job.resultPath = rewriteLegacyPath(job.resultPath);
+      job.thumbnailPath = rewriteLegacyPath(job.thumbnailPath);
+      job.referencePaths = job.referencePaths.map((item) => rewriteLegacyPath(item)!);
+    }
+    for (const prompt of project.memory.database.generationPrompts) {
+      if (!prompt.canonicalPrompt) continue;
+      for (const reference of prompt.canonicalPrompt.references) reference.sourcePath = rewriteLegacyPath(reference.sourcePath);
+    }
+    const master = project.production.movieDna.masterFrame;
+    if (master) master.thumbnailPath = rewriteLegacyPath(master.thumbnailPath);
+    for (const grid of Object.values(project.production.storyboardGrids)) grid.thumbnailPath = rewriteLegacyPath(grid.thumbnailPath);
+    for (const promptRecord of Object.values(project.production.promptWorkspace.records)) {
+      for (const reference of promptRecord.state.references) {
+        const active = records.find((item) => item.id === reference.assetId);
+        if (active) {
+          reference.permanentProjectImageNumber = active.number;
+          reference.permanentFilename = active.filename;
+          reference.sourcePath = active.imagePath;
+          reference.thumbnailPath = active.thumbnailPath;
+        } else {
+          reference.sourcePath = rewriteLegacyPath(reference.sourcePath);
+          reference.thumbnailPath = rewriteLegacyPath(reference.thumbnailPath);
+        }
+      }
+    }
+    return changed;
   }
 
   private async atomicWrite(filePath: string, contents: string) {

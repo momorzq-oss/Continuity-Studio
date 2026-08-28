@@ -29,6 +29,7 @@ logs/
 **/generated_video/
 **/audio/generated/
 **/final/private/
+tutorial/work/
 
 # Python and general caches
 .venv/

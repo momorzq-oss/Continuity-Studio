@@ -58,6 +58,7 @@ import {
   syncManifestRuntime,
   updateManifestAsset,
 } from "./asset-manifest.js";
+import { activeAssetManifest, assetHistoryManifest } from "./asset-storage.js";
 import {
   approveContinuitySnapshot,
   markProductionMemoryStale,
@@ -337,7 +338,9 @@ export const createRuntime = async (options: RuntimeOptions) => {
   });
   app.get("/api/projects/:projectId", async (request, response) => {
     const project = await store.getProject(request.params.projectId);
-    if (await agent.assetMaker.reconcileFileStatus(project)) await store.saveProject(project);
+    // Keep polling reads read-only. A long-running image generation can overlap
+    // the browser's project refresh interval; persisting a stale read here can
+    // overwrite the completed generation metadata after its final save.
     response.json(project);
   });
   app.post("/api/projects/:projectId/change-impact", async (request, response) => {
@@ -757,7 +760,17 @@ export const createRuntime = async (options: RuntimeOptions) => {
         if (!sequence) throw new ProjectNotFoundError(`Sequence ${sequenceId} was not found.`);
         sequence.status = "REJECTED";
         sequence.inspectionNotes.push(reason);
-        sequence.generationHistory.push({ id: crypto.randomUUID(), status: "REJECTED", reason, videoPath: sequence.videoPath, createdAt: new Date().toISOString() });
+        const rejectedAttempt = [...sequence.generationHistory]
+          .reverse()
+          .find((attempt) => attempt.videoPath === sequence.videoPath && attempt.attemptNumber);
+        sequence.generationHistory.push({
+          ...(rejectedAttempt ?? {}),
+          id: crypto.randomUUID(),
+          status: "REJECTED",
+          reason,
+          videoPath: sequence.videoPath,
+          createdAt: new Date().toISOString(),
+        });
         break;
       }
       case "approve_sequence": approveSequence(project, z.string().parse(payload.sequenceId), false); break;
@@ -789,9 +802,20 @@ export const createRuntime = async (options: RuntimeOptions) => {
     const extension = contentType.includes("webm") ? ".webm" : contentType.includes("quicktime") ? ".mov" : ".mp4";
     const relativePath = `generated_video/${sequence.id.toLowerCase()}-${Date.now()}${extension}`;
     await store.writeProjectBinary(project.id, relativePath, Buffer.isBuffer(request.body) ? request.body : Buffer.from(request.body));
+    const platform = project.production.promptWorkspace.selectedPlatforms[sequence.id] ?? project.targetPlatform;
+    const promptRecord = project.production.promptWorkspace.records[`${sequence.id}:${platform}`];
+    const promptVersion = promptRecord?.versions.at(-1)?.version ?? promptRecord?.versions.length ?? 0;
+    const referenceAssetIds = promptRecord?.state.references.filter((reference) => reference.selected).map((reference) => reference.assetId) ?? [];
+    const generationDate = new Date().toISOString();
+    const attemptNumber = Math.max(0, ...sequence.generationHistory.map((attempt) => attempt.attemptNumber ?? 0)) + 1;
+    const importedFilename = decodeURIComponent(String(request.headers["x-filename"] ?? `${sequence.id}${extension}`));
     sequence.videoPath = relativePath;
     sequence.status = "GENERATED";
-    sequence.generationHistory.push({ id: crypto.randomUUID(), status: "GENERATED", videoPath: relativePath, createdAt: new Date().toISOString() });
+    sequence.generationHistory.push({
+      id: crypto.randomUUID(), status: "GENERATED", videoPath: relativePath, importedFilename,
+      platform, promptVersion, jsonVersion: promptVersion, referenceAssetIds, attemptNumber,
+      generationDate, durationSeconds: sequence.durationSeconds, createdAt: generationDate,
+    });
     const gate = project.production.gates.find((item) => item.stage === "video_review");
     if (gate) Object.assign(gate, { status: "REVIEW", updatedAt: new Date().toISOString(), note: `${sequence.id} is ready for continuity inspection.` });
     await store.saveProject(project);
@@ -1134,7 +1158,7 @@ export const createRuntime = async (options: RuntimeOptions) => {
         if (scope === "approved") return ["APPROVED", "LOCKED"].includes(record.status);
         if (scope === "locked") return record.status === "LOCKED";
         return true;
-      });
+      }).sort((left, right) => left.number - right.number);
       response.setHeader("Content-Type", "application/zip");
       response.setHeader("Content-Disposition", `attachment; filename="${project.id}-assets-${scope}.zip"`);
       const archive = new ZipArchive({ zlib: { level: 9 } });
@@ -1145,7 +1169,8 @@ export const createRuntime = async (options: RuntimeOptions) => {
         const relativePath = record.imagePath ?? entity?.generatedImagePath;
         if (relativePath && await store.projectFileExists(project.id, relativePath)) archive.file(store.resolveProjectFile(project.id, relativePath), { name: record.filename });
       }
-      archive.append(`${JSON.stringify({ projectId: project.id, scope, exportedAt: new Date().toISOString(), assets: records }, null, 2)}\n`, { name: "asset-manifest.json" });
+      archive.append(`${JSON.stringify({ ...activeAssetManifest(project, records), scope, exportedAt: new Date().toISOString() }, null, 2)}\n`, { name: "asset-manifest.json" });
+      archive.append(`${JSON.stringify(assetHistoryManifest(project), null, 2)}\n`, { name: "asset_history.json" });
       await archive.finalize();
     } catch (error) {
       next(error);

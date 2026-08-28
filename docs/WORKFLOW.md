@@ -78,7 +78,15 @@ Choose Seedance, Higgsfield, MiniMax, Veo, Kling, Runway, Sora, or Custom. The c
 
 ### 11. Manual provider generation
 
-Copy the Normal or JSON Prompt and upload the numbered references in the provider's own product. v1.1.0 does not claim direct video generation or generated-video import.
+Copy the Normal or JSON Prompt and upload the numbered references in the provider's own product. The current source build does not claim direct provider video generation.
+
+### 12. Generated-video return and review
+
+Import the provider result into the same sequence. Continuity Studio records its platform, prompt and JSON versions, reference set, attempt number, generation date, filename, and duration. Approve, reject, or lock the result. Rejection preserves the attempt and reason. An approved locked ending updates permanent continuity and becomes the next sequence Start State.
+
+### 13. Dashboard and export
+
+Review total, approved, ready, blocked, rejected, and waiting sequences together with missing assets, prompt warnings, and continuity warnings. When every sequence is approved or locked, download the complete structured project ZIP.
 
 ## Approval and invalidation rules
 
@@ -88,4 +96,4 @@ Copy the Normal or JSON Prompt and upload the numbered references in the provide
 - Upstream changes create visible stale/changed state downstream.
 - Rejected future video attempts must never update permanent continuity.
 
-See [Roadmap](ROADMAP.md) for the remaining provider-return, inspection, approval, transfer, dashboard, and final-export blocks.
+See [Roadmap](ROADMAP.md) for automated visual inspection, targeted prompt correction, direct provider adapters, and final movie assembly.

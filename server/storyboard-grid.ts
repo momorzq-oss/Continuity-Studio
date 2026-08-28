@@ -5,6 +5,7 @@ import type {
   SequenceStoryboardGrid,
   StoryboardGridPanel,
 } from "../src/types.js";
+import { permanentAssetFilename } from "./asset-storage.js";
 
 const now = () => new Date().toISOString();
 const pad = (value: number) => String(value).padStart(2, "0");
@@ -101,7 +102,7 @@ export const setSequenceStoryboardGrid = (project: MovieProject, sequenceId: str
   if (enabled && current.projectImageNumber === undefined) {
     current.projectImageNumber = project.production.nextProjectImageNumber;
     project.production.nextProjectImageNumber += 1;
-    current.permanentFilename = `${pad(current.projectImageNumber)}_Sequence_${pad(sequence.number)}_Storyboard_Grid.png`;
+    current.permanentFilename = permanentAssetFilename(current.projectImageNumber, `Sequence_${pad(sequence.number)}_Storyboard_Grid`, "png");
   }
   current.enabled = enabled;
   current.panels = enabled ? panelsFromShots(project, sequence) : current.panels;

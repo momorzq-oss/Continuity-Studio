@@ -106,11 +106,13 @@ Open References in Sequence Workspace. Use the recommended set or choose manuall
 
 Download or merge the Sequence Reference Package only after validation passes.
 
-## 12. Generate manually and export
+## 12. Generate manually, import, and review
 
-Transfer the prompt and references to the selected provider's own application. v1.1.0 stops at this handoff. Keep the provider result with the exported project until generated-video import ships.
+Transfer the prompt and references to the selected provider's own application. Import the result into its Continuity Studio sequence. The attempt remains linked to the selected platform, prompt and JSON versions, references, generation date, filename, and duration. Reject a failed attempt with a reason or approve and lock the accepted result. Only an approved result transfers its End State into permanent continuity and the next sequence Start State.
 
-Open Export to download the structured project ZIP. The ZIP preserves available JSON, Markdown, rule, reference, image, prompt, and continuity records. It is not a rendered final movie.
+## 13. Dashboard and export
+
+Use Overview to review movie completion, sequence states, missing assets, prompt warnings, and continuity warnings. Open Export to download the structured project ZIP. The ZIP preserves available JSON, Markdown, rule, reference, image, prompt, generated-video, generation-history, and continuity records. It is not a rendered final movie.
 
 ## Local persistence
 

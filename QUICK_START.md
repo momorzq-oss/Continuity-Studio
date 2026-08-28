@@ -41,6 +41,6 @@ Open Character Analysis and Reference Manager to connect permanent identities an
 
 Open a sequence in **Sequence Workspace v3**. Select Seedance, Higgsfield, MiniMax, Veo, Kling, Runway, Sora, or Custom. Inspect the synchronized Normal/JSON prompts, temporary reference tags, upload order, profile limits, and blocking issues, then copy or export the prompt/reference package manually.
 
-## 8. Export
+## 8. Import, approve, and export
 
-Resolve blocking continuity issues, save the prompt version, and open **Export** to download the local project ZIP. Direct video generation and generated-video import are roadmap work in v1.1.0.
+Generate in the selected provider, then import the result into the same sequence. Reject failed attempts with a reason or approve and lock the accepted result. Verify automatic End State transfer and the movie dashboard, then open **Export** to download the local project ZIP. Direct provider video generation remains roadmap work.

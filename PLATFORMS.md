@@ -53,6 +53,6 @@ The provider-neutral image job interface stores provider/model, prompts, source 
 
 ## Video generation boundary
 
-No direct Seedance, Higgsfield, MiniMax, Veo, Kling, Runway, Sora, or generic video adapter is registered in v1.1.0. Generated-video import and automatic video review are also roadmap work.
+No direct Seedance, Higgsfield, MiniMax, Veo, Kling, Runway, Sora, or generic video adapter is registered in the current source build. Provider results can be imported and reviewed manually with preserved attempt metadata. Automated visual inspection of video pixels remains roadmap work.
 
 Provider names identify compatible prompt formats only. They do not imply sponsorship, endorsement, ownership, or an official partnership.

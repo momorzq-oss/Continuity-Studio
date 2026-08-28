@@ -858,7 +858,22 @@ export interface ProductionSequencePlan {
   status: "PLANNED" | "READY" | "GENERATED" | "REJECTED" | "APPROVED" | "LOCKED";
   videoPath?: string;
   inspectionNotes: string[];
-  generationHistory: Array<{ id: string; status: string; reason?: string; videoPath?: string; createdAt: string }>;
+  generationHistory: Array<{
+    id: string;
+    status: string;
+    reason?: string;
+    corrections?: string[];
+    videoPath?: string;
+    importedFilename?: string;
+    platform?: TargetPlatform;
+    promptVersion?: number;
+    jsonVersion?: number;
+    referenceAssetIds?: string[];
+    attemptNumber?: number;
+    generationDate?: string;
+    durationSeconds?: number;
+    createdAt: string;
+  }>;
 }
 
 export interface PlatformProfile {

@@ -600,7 +600,16 @@ export const approveSequence = (project: MovieProject, sequenceId: string, lock 
       project.production.continuityLedger.push({ id: randomUUID(), sequenceId, entityId, state: state ? `${state.location} · ${state.condition} · ${state.propsCarried.join(", ") || "no carried props"}` : sequence.endState, source, createdAt: now() });
     });
   } else sequence.assetIds.forEach((entityId) => project.production.continuityLedger.push({ id: randomUUID(), sequenceId, entityId, state: sequence.endState, source, createdAt: now() }));
-  sequence.generationHistory.push({ id: randomUUID(), status: source, videoPath: sequence.videoPath, createdAt: now() });
+  const approvedAttempt = [...sequence.generationHistory]
+    .reverse()
+    .find((attempt) => attempt.videoPath === sequence.videoPath && attempt.attemptNumber);
+  sequence.generationHistory.push({
+    ...(approvedAttempt ?? {}),
+    id: randomUUID(),
+    status: source,
+    videoPath: sequence.videoPath,
+    createdAt: now(),
+  });
   setGate(project.production, "continuity", "APPROVED", `${sequenceId} end state transferred to the central Continuity Ledger.`);
   if (project.production.sequences.every((item) => ["APPROVED", "LOCKED"].includes(item.status))) {
     setGate(project.production, "video_review", "APPROVED", "Every generated sequence passed continuity inspection.");
