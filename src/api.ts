@@ -3,11 +3,15 @@ import type {
   AppSettings,
   BrainMode,
   BrainStatusSnapshot,
+  ChangeImpactReport,
+  ChangeSourceType,
   CreateProjectInput,
   DiagnosticsSnapshot,
   MovieProject,
   PhaseId,
   ProjectListItem,
+  ProductionAssetCategory,
+  ReferenceUploadInput,
   RunMode,
 } from "./types";
 
@@ -28,6 +32,17 @@ export const api = {
   listProjects: () => request<ProjectListItem[]>("/api/projects"),
   getProject: (projectId: string) =>
     request<MovieProject>(`/api/projects/${projectId}`),
+  changeImpact: (projectId: string, sourceType: ChangeSourceType, sourceId?: string) =>
+    request<ChangeImpactReport>(`/api/projects/${projectId}/change-impact`, {
+      method: "POST",
+      body: JSON.stringify({ sourceType, sourceId }),
+    }),
+  storyExportUrl: (projectId: string, format: "full" | "structure" | "timeline" | "arcs" | "sequences" | "json") =>
+    `/api/projects/${projectId}/story/export?format=${encodeURIComponent(format)}`,
+  scriptExportUrl: (projectId: string, format: "full" | "production" | "dialogue" | "shots" | "sequences" | "json") =>
+    `/api/projects/${projectId}/script/export?format=${encodeURIComponent(format)}`,
+  sequenceReferencePackageUrl: (projectId: string, sequenceId: string, platform: string) =>
+    `/api/projects/${projectId}/sequences/${sequenceId}/references?platform=${encodeURIComponent(platform)}`,
   createProject: (input: CreateProjectInput) =>
     request<MovieProject>("/api/projects", {
       method: "POST",
@@ -38,6 +53,21 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify({ mode }),
     }),
+  workflowAction: (projectId: string, action: string, payload: Record<string, unknown> = {}) =>
+    request<MovieProject>(`/api/projects/${projectId}/workflow/actions`, {
+      method: "POST",
+      body: JSON.stringify({ action, payload }),
+    }),
+  uploadSequenceVideo: async (projectId: string, sequenceId: string, file: File) => {
+    const response = await fetch(`/api/projects/${projectId}/sequences/${sequenceId}/video`, {
+      method: "POST",
+      headers: { "Content-Type": file.type || "video/mp4" },
+      body: file,
+    });
+    const payload = (await response.json().catch(() => ({}))) as MovieProject & { error?: string };
+    if (!response.ok) throw new Error(payload.error || `Video upload failed (${response.status}).`);
+    return payload;
+  },
   updateBrain: (projectId: string, brain: BrainMode) =>
     request<MovieProject>(`/api/projects/${projectId}`, {
       method: "PATCH",
@@ -58,16 +88,36 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ description }),
     }),
-  uploadReference: (projectId: string, input: { filename: string; mimeType: "image/png" | "image/jpeg" | "image/webp"; base64: string; name: string; type: string; roles?: string[]; storyUsage?: string; mainCharacter?: boolean }) =>
+  uploadReference: (projectId: string, input: ReferenceUploadInput) =>
     request<MovieProject>(`/api/projects/${projectId}/references`, { method: "POST", body: JSON.stringify(input) }),
   completeReferenceSetup: (projectId: string) =>
     request<MovieProject>(`/api/projects/${projectId}/reference-setup/complete`, { method: "POST", body: "{}" }),
-  updateReference: (projectId: string, referenceId: string, input: { roles?: string[]; storyUsage?: string; priority?: number }) =>
+  updateReference: (projectId: string, referenceId: string, input: { roles?: string[]; storyUsage?: string; priority?: number; sequenceIds?: string[]; label?: string; name?: string }) =>
     request<MovieProject>(`/api/projects/${projectId}/references/${referenceId}`, { method: "PATCH", body: JSON.stringify(input) }),
+  replaceReference: (projectId: string, referenceId: string, input: Pick<ReferenceUploadInput, "filename" | "mimeType" | "base64">) =>
+    request<MovieProject>(`/api/projects/${projectId}/references/${referenceId}/image`, { method: "PUT", body: JSON.stringify(input) }),
+  removeReference: (projectId: string, referenceId: string) =>
+    request<MovieProject>(`/api/projects/${projectId}/references/${referenceId}`, { method: "DELETE" }),
+  generateReferenceSheet: (projectId: string, referenceId: string, force = false) =>
+    request<MovieProject>(`/api/projects/${projectId}/references/${referenceId}/generate-sheet`, { method: "POST", body: JSON.stringify({ force }) }),
   generateAllAssets: (projectId: string, force = false) =>
     request<MovieProject>(`/api/projects/${projectId}/assets/generate-all`, { method: "POST", body: JSON.stringify({ force }) }),
-  generateAsset: (projectId: string, assetId: string, force = false) =>
-    request<MovieProject>(`/api/projects/${projectId}/assets/${assetId}/generate`, { method: "POST", body: JSON.stringify({ force }) }),
+  generateAsset: (projectId: string, assetId: string, force = false, impactMode?: "FUTURE_ONLY" | "APPLY_ALL") =>
+    request<MovieProject>(`/api/projects/${projectId}/assets/${assetId}/generate`, { method: "POST", body: JSON.stringify({ force, impactMode }) }),
+  rebuildAssetManifest: (projectId: string) =>
+    request<MovieProject>(`/api/projects/${projectId}/assets/rebuild`, { method: "POST", body: "{}" }),
+  addAsset: (projectId: string, input: { name: string; category: Exclude<ProductionAssetCategory, "movie_dna" | "character_state">; description: string; storyPurpose?: string; sequenceIds?: string[]; referenceRole?: string; continuityRequirements?: string[] }) =>
+    request<{ project: MovieProject; assetId: string }>(`/api/projects/${projectId}/assets`, { method: "POST", body: JSON.stringify(input) }),
+  updateManifestAsset: (projectId: string, assetId: string, input: { description?: string; storyPurpose?: string; sequenceIds?: string[]; referenceRoles?: string[]; generationPrompt?: string }) =>
+    request<MovieProject>(`/api/projects/${projectId}/assets/${assetId}/manifest`, { method: "PATCH", body: JSON.stringify(input) }),
+  decideMissingAsset: (projectId: string, assetId: string, action: "GENERATE" | "UPLOAD" | "IGNORE", reason?: string) =>
+    request<MovieProject>(`/api/projects/${projectId}/assets/${assetId}/missing-decision`, { method: "POST", body: JSON.stringify({ action, reason }) }),
+  acceptAssetReplacement: (projectId: string, assetId: string) =>
+    request<MovieProject>(`/api/projects/${projectId}/assets/${assetId}/replacement/accept`, { method: "POST", body: "{}" }),
+  rejectAssetReplacement: (projectId: string, assetId: string) =>
+    request<MovieProject>(`/api/projects/${projectId}/assets/${assetId}/replacement`, { method: "DELETE" }),
+  deleteManualAsset: (projectId: string, assetId: string) =>
+    request<MovieProject>(`/api/projects/${projectId}/assets/${assetId}/manifest`, { method: "DELETE" }),
   planScenes: (projectId: string) => request<MovieProject>(`/api/projects/${projectId}/scenes/plan`, { method: "POST", body: "{}" }),
   generateAllScenes: (projectId: string, force = false) =>
     request<MovieProject>(`/api/projects/${projectId}/scenes/generate-all`, { method: "POST", body: JSON.stringify({ force }) }),
@@ -132,4 +182,7 @@ export const api = {
     }),
   diagnostics: (brain?: BrainMode) => request<DiagnosticsSnapshot>(`/api/diagnostics${brain ? `?brain=${brain}` : ""}`),
   exportUrl: (projectId: string) => `/api/projects/${projectId}/export`,
+  assetDownloadUrl: (projectId: string, assetId: string) => `/api/projects/${projectId}/assets/${encodeURIComponent(assetId)}/download`,
+  assetExportUrl: (projectId: string, scope: "all" | "selected" | "approved" | "locked" = "all", ids: string[] = []) =>
+    `/api/projects/${projectId}/assets/export?scope=${scope}${ids.length ? `&ids=${encodeURIComponent(ids.join(","))}` : ""}`,
 };

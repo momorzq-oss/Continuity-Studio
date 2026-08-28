@@ -19,6 +19,7 @@ import type {
   FilmBibleArtifact,
   FramePlanArtifact,
   MovieProject,
+  ProjectConfig,
   PhaseId,
   ProjectListItem,
   PromptArtifact,
@@ -33,12 +34,28 @@ import {
   createProjectMemory,
   migrateProject,
 } from "./project-schema.js";
+import { createProductionWorkflow } from "./production-workflow.js";
 
 const PROJECT_FOLDERS = [
   "film_bible",
+  "movie_dna",
   "story",
+  "script",
   "sequences",
   "assets",
+  "assets/main_character/generated",
+  "assets/characters/generated",
+  "assets/creatures/generated",
+  "assets/locations/generated",
+  "assets/buildings/generated",
+  "assets/rooms/generated",
+  "assets/vehicles/generated",
+  "assets/props/generated",
+  "assets/weapons/generated",
+  "assets/animals/generated",
+  "assets/costumes/generated",
+  "assets/accessories/generated",
+  "assets/objects/generated",
   "references/uploads",
   "references/thumbnails",
   "model_profiles",
@@ -49,6 +66,7 @@ const PROJECT_FOLDERS = [
   "frame_plans",
   "frames",
   "prompts",
+  "platform_prompts",
   "rules",
   "generations",
   "review",
@@ -58,6 +76,7 @@ const PROJECT_FOLDERS = [
   "generated_images/storyboards",
   "generated_video",
   "continuity",
+  "timeline",
   "audio",
   "final",
 ] as const;
@@ -108,7 +127,7 @@ const renderContinuity = (report: ContinuityArtifact) =>
 const phasePaths: Record<PhaseId, string[]> = {
   story: ["story"],
   film_bible: ["film_bible", "MOVIE_RULES.md"],
-  assets: ["assets"],
+  assets: ["assets/manifest.json", "assets/manifest.md"],
   sequences: ["sequences"],
   frame_plans: ["frame_plans"],
   prompts: ["prompts"],
@@ -140,7 +159,21 @@ export class ProjectStore {
   async createProject(input: CreateProjectInput, provider: ProviderInfo) {
     await this.initialize();
     const now = new Date().toISOString();
-    const { brain: selectedBrain = "local", ...config } = input;
+    const { brain: selectedBrain = "local", mainCharacterReference: _pendingReference, ...rawConfig } = input;
+    const config: ProjectConfig = {
+      ...rawConfig,
+      movieTitle: rawConfig.movieTitle?.trim() || rawConfig.title,
+      sequenceDurationSeconds: rawConfig.sequenceDurationSeconds ?? Math.max(1, Math.round((rawConfig.runtimeMinutes * 60) / Math.max(1, rawConfig.sequenceCount))),
+      resolution: rawConfig.resolution ?? "4K UHD",
+      filmLanguage: rawConfig.filmLanguage ?? rawConfig.language,
+      dialogueLanguage: rawConfig.dialogueLanguage ?? rawConfig.language,
+      audienceRating: rawConfig.audienceRating ?? "General / PG-13",
+      targetPlatform: rawConfig.targetPlatform ?? "Seedance",
+      narrationEnabled: rawConfig.narrationEnabled ?? false,
+      dialogueEnabled: rawConfig.dialogueEnabled ?? true,
+      musicEnabled: rawConfig.musicEnabled ?? true,
+      subtitlesEnabled: rawConfig.subtitlesEnabled ?? true,
+    };
     const projectId = `${slugify(input.title)}-${randomUUID().slice(0, 8)}`;
     const project: MovieProject = {
       ...config,
@@ -160,7 +193,7 @@ export class ProjectStore {
       ],
       provider,
       brain: createProjectBrain(selectedBrain),
-      memory: createProjectMemory(projectId),
+      memory: createProjectMemory(projectId, config),
       preStorySetup: {
         mode: config.storyMode,
         completed: config.storyMode === "AI_FIRST",
@@ -168,6 +201,7 @@ export class ProjectStore {
         sheetCreation: "AUTO",
         blockingIssues: [],
       },
+      production: createProductionWorkflow(config),
       createdAt: now,
       updatedAt: now,
     };
@@ -211,7 +245,8 @@ export class ProjectStore {
         .map(async (entry) => {
           try {
             const project = await this.getProject(entry.name);
-            const completed = project.phases.filter((phase) => phase.state === "completed").length;
+            const progressStages = ["project_setup", "movie_dna", "story", "film_bible", "characters", "asset_manifest", "sequences", "platform_prompts", "video_review", "export"];
+            const completed = project.production.gates.filter((gate) => progressStages.includes(gate.stage) && ["APPROVED", "LOCKED"].includes(gate.status)).length;
             return {
               id: project.id,
               title: project.title,
@@ -220,7 +255,7 @@ export class ProjectStore {
               mode: project.mode,
               brain: project.brain.selected,
               updatedAt: project.updatedAt,
-              progress: Math.round((completed / project.phases.length) * 100),
+              progress: project.status === "complete" ? 100 : Math.round((completed / progressStages.length) * 100),
             } satisfies ProjectListItem;
           } catch {
             return undefined;
@@ -244,7 +279,10 @@ export class ProjectStore {
     this.saveQueues.set(project.id, save);
     try {
       await save;
-      await this.writeProductionDatabase(project);
+      await Promise.all([
+        this.writeProductionDatabase(project),
+        this.writeProductionWorkflow(project),
+      ]);
     } finally {
       if (this.saveQueues.get(project.id) === save) {
         this.saveQueues.delete(project.id);
@@ -277,6 +315,57 @@ export class ProjectStore {
       this.atomicWrite(path.join(root, "generations", "results.json"), json(database.generationResults)),
       this.atomicWrite(path.join(root, "review", "validation_issues.json"), json(database.validationIssues)),
       this.atomicWrite(path.join(root, "review", "approvals.json"), json(database.approvals)),
+    ]);
+  }
+
+  private async writeProductionWorkflow(project: MovieProject) {
+    const root = this.projectPath(project.id);
+    const workflow = project.production;
+    if (!workflow) return;
+    const productionMemory = project.memory.productionMemory;
+    await Promise.all([
+      this.atomicWrite(path.join(root, "movie_dna", "movie_dna.json"), json(workflow.movieDna)),
+      this.atomicWrite(path.join(root, "story", "development.json"), json(workflow.story)),
+      this.atomicWrite(path.join(root, "story", "structured_story.json"), json({ storyId: workflow.story.storyId, title: workflow.story.title, premise: workflow.story.premise, logline: workflow.story.logline, summary: workflow.story.summary, sections: workflow.story.sections, characters: workflow.story.characters, locations: workflow.story.locations, objects: workflow.story.objects, events: workflow.story.events, status: workflow.story.status, version: workflow.story.version, approvedVersion: workflow.story.approvedVersion, lockedVersion: workflow.story.lockedVersion, movieDnaVersionUsed: workflow.story.movieDnaVersionUsed })),
+      this.atomicWrite(path.join(root, "story", "beats.json"), json(workflow.story.beats)),
+      this.atomicWrite(path.join(root, "story", "timeline.json"), json(workflow.story.timeline)),
+      this.atomicWrite(path.join(root, "story", "character_arcs.json"), json(workflow.story.characterArcs)),
+      this.atomicWrite(path.join(root, "story", "sequence_breakdown.json"), json(workflow.story.sequenceBreakdown)),
+      this.atomicWrite(path.join(root, "story", "versions.json"), json(workflow.story.history)),
+      this.atomicWrite(path.join(root, "story", "change_impact_decisions.json"), json(workflow.story.impactDecisions)),
+      this.atomicWrite(path.join(root, "story", "downstream_contracts.json"), json(workflow.story.contracts ?? {})),
+      this.atomicWrite(path.join(root, "film_bible", "production_bible.json"), json(workflow.filmBible)),
+      this.atomicWrite(path.join(root, "film_bible", "versions.json"), json(workflow.filmBible.history)),
+      this.atomicWrite(path.join(root, "film_bible", "source_context.json"), json(workflow.filmBible.sourceContext ?? {})),
+      this.atomicWrite(path.join(root, "assets", "numbered_manifest.json"), json(workflow.assets)),
+      this.atomicWrite(path.join(root, "character_sheets", "characters.json"), json(workflow.characters)),
+      this.atomicWrite(path.join(root, "character_sheets", "identity_registry.json"), json(workflow.characters.map((character) => ({ id: character.id, storyCandidateId: character.storyCandidateId, name: character.name, category: character.category, identitySource: character.identitySource, referenceIds: character.referenceIds, sheetId: character.sheetId, sheetStatus: character.sheetStatus, version: character.version, status: character.status })))),
+      this.atomicWrite(path.join(root, "character_sheets", "story_states.json"), json(workflow.characters.flatMap((character) => character.states.map((state) => ({ characterId: character.id, ...state }))))),
+      this.atomicWrite(path.join(root, "sequences", "production_plans.json"), json(workflow.sequences)),
+      this.atomicWrite(path.join(root, "timeline", "continuity_ledger.json"), json(workflow.continuityLedger)),
+      this.atomicWrite(path.join(root, "audio", "audio_bible.json"), json(workflow.audioBible)),
+      this.atomicWrite(path.join(root, "platform_prompts", "profiles.json"), json(workflow.platformProfiles)),
+      this.atomicWrite(path.join(root, "rules", "filmmaking_knowledge_sources.json"), json(workflow.knowledgeSources)),
+      this.atomicWrite(path.join(root, "frames", "storyboard_grids.json"), json(workflow.storyboardGrids)),
+      this.atomicWrite(path.join(root, "platform_prompts", "compiled.json"), json(workflow.sequences.map((sequence) => ({ sequenceId: sequence.id, referenceSlots: sequence.referenceSlots, sections: sequence.promptSections, prompt: sequence.compiledPrompt, negativePrompt: sequence.negativePrompt })) )),
+      this.atomicWrite(path.join(root, "platform_prompts", "prompt_workspace.json"), json(workflow.promptWorkspace)),
+      this.atomicWrite(path.join(root, "platform_prompts", "prompt_states.json"), json(Object.fromEntries(Object.entries(workflow.promptWorkspace.records).map(([key, record]) => [key, record.state])))),
+      this.atomicWrite(path.join(root, "platform_prompts", "prompt_versions.json"), json(Object.fromEntries(Object.entries(workflow.promptWorkspace.records).map(([key, record]) => [key, record.versions])))),
+      this.atomicWrite(path.join(root, "platform_prompts", "reference_manifests.json"), json(Object.fromEntries(Object.entries(workflow.promptWorkspace.records).map(([key, record]) => [key, record.state.references])))),
+      this.atomicWrite(path.join(root, "continuity", "permanent_negative_rules.json"), json(workflow.permanentNegativeRules)),
+      this.atomicWrite(path.join(root, "timeline", "production_story_timeline.json"), json(productionMemory.storyTimeline)),
+      this.atomicWrite(path.join(root, "continuity", "ledger.json"), json(productionMemory.continuity)),
+      this.atomicWrite(path.join(root, "continuity", "snapshots.json"), json(productionMemory.continuity.snapshots)),
+      this.atomicWrite(path.join(root, "continuity", "warnings.json"), json(productionMemory.continuity.warnings)),
+      this.atomicWrite(path.join(root, "continuity", "history.json"), json(productionMemory.continuity.history)),
+      this.atomicWrite(path.join(root, "audio", "production_audio_bible.json"), json(productionMemory.audioBible)),
+      this.atomicWrite(path.join(root, "script", "full_script.json"), json(productionMemory.script)),
+      this.atomicWrite(path.join(root, "script", "versions.json"), json(productionMemory.script.versions)),
+      this.atomicWrite(path.join(root, "script", "dialogue.json"), json(productionMemory.script.dialogue)),
+      this.atomicWrite(path.join(root, "script", "shots.json"), json(productionMemory.script.shots)),
+      this.atomicWrite(path.join(root, "sequences", "formal_sequence_plans.json"), json(productionMemory.script.sequences)),
+      this.atomicWrite(path.join(root, "script", "change_history.json"), json(productionMemory.script.history)),
+      this.atomicWrite(path.join(root, "review", "workflow_gates.json"), json(workflow.gates)),
     ]);
   }
 
@@ -394,6 +483,22 @@ export class ProjectStore {
     await mkdir(path.dirname(target), { recursive: true });
     await writeFile(target, contents);
     return relativePath.replaceAll("\\", "/");
+  }
+
+  async readProjectBinary(projectId: string, relativePath: string) {
+    return readFile(this.resolveProjectFile(projectId, relativePath));
+  }
+
+  async projectFileExists(projectId: string, relativePath: string) {
+    try {
+      return (await stat(this.resolveProjectFile(projectId, relativePath))).isFile();
+    } catch {
+      return false;
+    }
+  }
+
+  async removeProjectFile(projectId: string, relativePath: string) {
+    await rm(this.resolveProjectFile(projectId, relativePath), { force: true });
   }
 
   private async atomicWrite(filePath: string, contents: string) {

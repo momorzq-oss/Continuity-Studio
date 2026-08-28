@@ -1,49 +1,32 @@
-# Continuity Studio
+# Continuity Studio By BURABEEH
 
-Creado por **Mohammed Al Marzooqi**, **Burabeeh**, Emiratos Árabes Unidos.
+Creado por **Mohammed Al Marzooqi (BURABEEH)**, Emiratos Árabes Unidos.
 
 [English](README.md) · [العربية](README.ar.md) · [Español](README.es.md) · [中文](README.zh-CN.md)
 
-Continuity Studio es un sistema abierto de producción cinematográfica con IA y control de continuidad. Convierte una idea en un proyecto local e inspeccionable con historia, biblia de la película, activos visuales, hojas de continuidad, escenas, storyboard, secuencias, prompts por plataforma, validación y exportación.
+Continuity Studio By BURABEEH es un espacio local de producción cinematográfica con IA y control de continuidad. Convierte una idea en registros estructurados de Movie DNA, Historia, Biblia de la película, personajes, referencias, activos, guion, secuencias, planos y prompts por plataforma.
 
-Su objetivo es mantener coherentes la identidad, vestuario, utilería, animales, localizaciones, geografía, iluminación y daños durante una producción asistida por IA.
+![Sequence Workspace v3](docs/screenshots/39-sequence-detail.png)
 
-## Flujo completo
+## Versión actual v1.1.0
 
-Idea → Referencias → Historia → Biblia de la película → Manifiesto de activos → Hojas de personajes/criaturas/animales/localizaciones/utilería → Activos de escena → Storyboard e imágenes → Secuencias → Fotogramas START/MID/END → Prompt canónico → Compilador de plataforma → Flujo de generación → Inspección de continuidad → Aprobación → Exportación.
+- Visual Movie DNA con 27 categorías y 629 opciones, comparación, versiones, bloqueo, fotograma maestro y localización global.
+- Story v2 con Historia completa, Estructura, Línea temporal, Arcos de personajes, Desglose de secuencias, aprobación y bloqueo.
+- Film Bible, análisis de personajes, referencias protegidas, hojas y estados de personaje por secuencia.
+- Asset Manifest numerado, Image Asset Library, inspección, edición de prompt, versiones, aprobación y bloqueo.
+- Full Script v2 con guion completo, solo diálogo, Shot Script y Production Script.
+- Sequence Workspace v3 con Normal Prompt y JSON Prompt sincronizados, validación, versiones, Previous/Next y Storyboard Grid opcional.
+- Perfiles versionados para Seedance, Higgsfield, MiniMax, Veo, Kling, Runway, Sora y Custom.
+- IDs permanentes, numeración `@Image`, orden de subida y paquetes de referencias por secuencia.
+- Modos Full y Phases, Production Agent, almacenamiento local JSON/Markdown/medios y exportación ZIP.
 
-## Funciones de v1.0.0
+## Límite de la versión
 
-- Modos Full y Phases.
-- Preparación AI First, Reference First e Hybrid.
-- Referencias protegidas y fuente permanente del personaje principal.
-- Story Engine, Film Bible y 53 reglas operativas.
-- Identificadores permanentes, relaciones, linaje, versiones, aprobación y bloqueo.
-- Trabajos locales que producen archivos PNG reales de previsualización y hojas adaptativas.
-- Escenas con dependencias, imagen maestra y START/MID/END.
-- Storyboard separado de la escena maestra.
-- Prompt canónico y perfiles editables para Seedance, MiniMax, Higgsfield y Generic.
-- Mapeo temporal de referencias sin cambiar el ID interno.
-- Motor integrado sin conexión, modelo local compatible con OpenAI, supervisión Codex y proveedor textual OpenAI opcionales.
-- Persistencia local y exportación ZIP.
-- Instalador y versión portátil para Windows.
+La generación directa de vídeo, la importación de resultados, la inspección automática, la aprobación de intentos, la transferencia automática END→START, el panel de finalización y el montaje final no están terminados en v1.1.0. Consulta la [hoja de ruta](docs/ROADMAP.md).
 
-## Estado real de proveedores
+## Instalación en español
 
-- **OpenAI API:** integración textual operativa; requiere `OPENAI_API_KEY`.
-- **Codex:** supervisión operativa mediante inicio de sesión Codex/ChatGPT.
-- **Modelo local:** proveedor textual opcional para un servidor compatible con OpenAI.
-- **Seedance 2.5:** compilación, etiquetas y exportación manual; sin generación API directa.
-- **MiniMax S2V-01:** referencia de sujeto, compilación y exportación manual; sin API directa.
-- **Higgsfield:** plan de referencias/prompt y exportación manual; sin API directa.
-- **KimiBrain:** futuro, no integrado.
-- **Renderer local:** genera PNG de previsualización; no es un modelo fotorealista.
-
-Las marcas mencionadas no patrocinan ni respaldan oficialmente Continuity Studio.
-
-## Instalación CLI en español
-
-Requisitos: Node.js 20.19+ (recomendado Node.js 22 LTS), npm 10+ y Git para clonar. Python, FFmpeg y una base de datos externa no son necesarios en v1.0.0.
+Requisitos: Node.js 20.19 o posterior, npm 10 o posterior y Git para clonar.
 
 ```bash
 git clone https://github.com/momorzq-oss/Continuity-Studio.git
@@ -52,31 +35,20 @@ npm run setup -- --lang es
 npm run desktop:dev
 ```
 
-Modo no interactivo: `npm run setup -- --lang es --yes`.
+Para configuración no interactiva usa `npm run setup -- --lang es --yes`. También puedes descargar el instalador o la versión portátil de Windows desde [GitHub Releases](https://github.com/momorzq-oss/Continuity-Studio/releases). Los binarios no están firmados y Windows puede mostrar una advertencia de editor desconocido.
 
-El instalador comprueba Node.js, pregunta si debe instalar dependencias, crea opcionalmente `.env` y ejecuta pruebas. Nunca solicita ni imprime secretos. Consulta la [instalación en español](docs/i18n/es/INSTALLATION.md), el [inicio rápido](docs/i18n/es/QUICK_START.md) y la [guía de usuario](docs/i18n/es/USER_GUIDE.md).
+## Uso rápido
 
-Para Windows también puedes descargar el instalador o ejecutable portátil desde GitHub Releases. Los binarios no tienen certificado de firma comercial y Windows puede mostrar una advertencia de editor desconocido.
+1. Crea un proyecto y elige Full o Phases.
+2. Elige, revisa y bloquea Movie DNA.
+3. Crea y aprueba Story v2, Film Bible, personajes, referencias y activos.
+4. Revisa Full Script v2, bloquea el diálogo y planifica planos y secuencias.
+5. Abre Sequence Workspace, elige un Platform Profile y valida Normal/JSON Prompt.
+6. Revisa la numeración y el orden de referencias y transfiere el paquete manualmente al proveedor.
+7. Exporta el ZIP estructurado del proyecto.
 
-## Uso resumido
+Consulta la [instalación](docs/i18n/es/INSTALLATION.md), el [inicio rápido](docs/i18n/es/QUICK_START.md), la [guía de usuario](docs/i18n/es/USER_GUIDE.md) y la [galería](docs/SCREENSHOTS.md).
 
-1. Crea un proyecto con época, formato, duración y modo de historia.
-2. Añade referencias opcionales y roles; marca una imagen como personaje principal si corresponde.
-3. Completa Reference Setup y ejecuta Production Agent.
-4. Revisa Historia, Film Bible y Asset Manifest.
-5. Genera hojas y bloquea las versiones aprobadas.
-6. Genera Scene Assets, Storyboard, secuencias y estados START/MID/END.
-7. Compila prompts, revisa etiquetas/límites y exporta manualmente al proveedor.
-8. Resuelve continuidad y exporta el ZIP.
+Los proyectos, referencias y medios se guardan localmente y Git los ignora. Guarda secretos solo en `.env`. Los nombres de proveedores no implican patrocinio ni asociación oficial.
 
-## Identidad independiente del proveedor
-
-`CHAR_MAIN_001` pertenece al proyecto. `@Image 1` es solo una etiqueta temporal para una solicitud concreta. El sistema conserva el ID estable y crea el formato que cada plataforma necesita.
-
-## Privacidad
-
-Los proyectos, referencias, medios y logs locales están excluidos de Git. Guarda claves solo en `.env`, que también está ignorado. No publiques imágenes personales ni proyectos privados.
-
-## Creador y licencia
-
-Mohammed Al Marzooqi (Burabeeh) es un creador emiratí de IA, cineasta independiente, experimentador de software y entusiasta tecnológico. Continuity Studio nació de su trabajo resolviendo identidad y continuidad en películas con IA. Copyright 2026 Mohammed Al Marzooqi; licencia [Apache-2.0](LICENSE).
+Copyright 2026 Mohammed Al Marzooqi. Licencia [Apache License 2.0](LICENSE).

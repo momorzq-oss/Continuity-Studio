@@ -1,147 +1,162 @@
-# Continuity Studio
+# Continuity Studio By BURABEEH
 
-Created by **Mohammed Al Marzooqi**, **Burabeeh**, United Arab Emirates.
+[![CI](https://github.com/momorzq-oss/Continuity-Studio/actions/workflows/ci.yml/badge.svg)](https://github.com/momorzq-oss/Continuity-Studio/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/momorzq-oss/Continuity-Studio)](https://github.com/momorzq-oss/Continuity-Studio/releases)
+[![License](https://img.shields.io/badge/license-Apache--2.0-blue.svg)](LICENSE)
+
+Created by **Mohammed Al Marzooqi (BURABEEH)** in the United Arab Emirates.
 
 [English](README.md) · [العربية](README.ar.md) · [Español](README.es.md) · [中文](README.zh-CN.md)
 
-Continuity Studio is an open-source AI filmmaking production and continuity workspace. It turns one movie idea into a persistent, inspectable project containing story development, film rules, visual asset records, continuity sheets, scene assets, storyboard frames, provider-ready prompts, validation, and export files.
+Continuity Studio By BURABEEH is a local-first AI filmmaking production workspace. It turns one movie idea into structured, inspectable production records: visual direction, Story, Film Bible, characters, reference images, assets, screenplay, timed sequences, shot plans, continuity state, and provider-ready prompts.
 
-The central goal is simple: **characters, wardrobe, props, animals, locations, geography, lighting, and damage should remain consistent across an AI-assisted production.**
+The application is designed around one difficult production problem: keeping **identity, wardrobe, props, creatures, animals, vehicles, locations, geography, lighting, camera language, dialogue, and physical state consistent from one sequence to the next**.
 
-![Continuity Studio asset workspace](screenshots/asset-workspace.png)
+![Sequence Workspace v3](docs/screenshots/39-sequence-detail.png)
+
+## Current release: v1.1.0
+
+v1.1.0 is a production-planning and prompt-compilation release. It includes the complete workflow through Sequence Workspace v3 and manual provider handoff. Direct provider video generation, generated-video import, automatic video inspection, attempt approval, and final movie assembly remain roadmap work and are not presented as finished features.
+
+### Working now
+
+- Full and Phases production modes with approval gates and restart-safe local persistence.
+- Project Setup for runtime, sequence duration, delivery format, language, rating, audio options, and production preferences.
+- Visual Movie DNA with **27 categories and 629 selectable options**, previews, comparisons, custom directions, version history, a permanent master frame, and downstream invalidation.
+- Integrated AI Filmmaking Visual Guide principles for identity locks, neutral character sheets, unique reference numbering, concise prompts, storyboard continuity, and reference-aware video prompting.
+- Story v2 with AI First, Reference First, and Hybrid creation; Full Story, Story Structure, Timeline, Character Arcs, and exact Sequence Breakdown views.
+- Film Bible, Character Analysis, protected main-character references, adaptive character sheets, and per-sequence character states.
+- Numbered Asset Manifest, Image Asset Library, asset inspection, targeted prompt editing, versions, approvals, and locks.
+- Full Script v2 with screenplay, dialogue-only, shot-script, production-script, scene, and sequence views.
+- Sequence Workspace v3 with Previous/Next navigation, editable Normal Prompt and JSON Prompt, live canonical state, validation, saved versions, optional Storyboard Grid, and persistence.
+- Versioned platform profiles for Seedance, Higgsfield, MiniMax, Veo, Kling, Runway, Sora, and Custom without hard-coding one provider's limits globally.
+- Stable reference IDs, provider-specific `@Image` numbering, upload order, reference slot mapping, and downloadable sequence reference packages.
+- Film Brain rules, Continuity Ledger, Audio Bible, Production Agent, diagnostics, local JSON/Markdown/media storage, and ZIP export.
+- Built-in offline planning and deterministic PNG previsuals, optional Codex supervision, optional OpenAI text generation, and optional OpenAI-compatible local text models.
 
 ## Production workflow
 
 ```mermaid
 flowchart TD
-  A[Idea] --> B[References]
-  B --> C[Story]
-  C --> D[Film Bible]
-  D --> E[Asset Manifest]
-  E --> F[Character / Creature / Animal / Location / Prop Sheets]
-  F --> G[Scene Assets]
-  G --> H[Storyboard and Storyboard Images]
-  H --> I[Sequence Planning]
-  I --> J[START / MID / END Frames]
-  J --> K[Canonical Prompt]
-  K --> L[Platform Prompt Compiler]
-  L --> M[Image / Video Generation Workflow]
-  M --> N[Continuity Inspection]
-  N --> O[Approval and Export]
+  A[Create Project] --> B[Choose and lock Movie DNA]
+  B --> C[Create and approve Story]
+  C --> D[Create Film Bible]
+  D --> E[Analyze characters and attach references]
+  E --> F[Create and approve assets]
+  F --> G[Build Full Script and lock dialogue]
+  G --> H[Plan shots and sequences]
+  H --> I[Open Sequence Workspace v3]
+  I --> J[Compile Normal and JSON prompts]
+  J --> K[Map and package references]
+  K --> L[Generate video manually in selected platform]
+  L --> M[Generated-video import and review - roadmap]
 ```
 
-## What works in v1.0.0
+See the detailed [production workflow](docs/WORKFLOW.md) and [user guide](docs/USER_GUIDE.md).
 
-- Full automatic and phase-by-phase production modes.
-- AI-first, reference-first, and hybrid story setup.
-- Protected user reference uploads and a permanent main-character source.
-- Story Engine, Film Bible, 53-rule Film Brain, and structured continuity states.
-- Permanent asset IDs, relationship graph, lineage, approvals, locks, and versions.
-- Real local PNG previsual generation jobs for asset masters and adaptive continuity sheets.
-- Dependency-gated scene masters with START, MID, and END images.
-- Storyboard frame entities and images kept separate from scene masters.
-- Canonical prompt representation and editable provider model profiles.
-- Seedance 2.5, MiniMax S2V-01, Higgsfield, and Generic **manual prompt compilation/export**.
-- Explicit provider reference mappings; critical identity references are never silently discarded.
-- Built-in offline production engine, optional OpenAI-compatible local model, Codex App Server supervision, and optional OpenAI text generation.
-- Local JSON/Markdown/media project storage and ZIP export.
-- Windows installer and portable desktop package.
+## Screenshots
 
-## Provider status
+All screenshots are from the real local v1.1.0 application using fictional verification projects. They contain no personal reference uploads.
 
-| Provider | Current support | Credentials |
-| --- | --- | --- |
-| Built-in local engine | Working story/planning pipeline and zero-cost PNG previsual renderer | None |
-| OpenAI API | Working text-phase provider through the OpenAI Responses API | `OPENAI_API_KEY` |
-| Codex | Working supervision through Codex App Server sign-in | ChatGPT/Codex sign-in |
-| OpenAI-compatible local models | Working optional text provider | Local server URL/model |
-| Seedance 2.5 | Prompt compilation, reference tags, validation, manual export | No direct generation API in v1.0.0 |
-| MiniMax S2V-01 | Prompt compilation, reference selection, validation, manual export | No direct generation API in v1.0.0 |
-| Higgsfield | Prompt compilation/reference plan and manual export | No direct generation API in v1.0.0 |
-| Generic image/video providers | Provider interfaces and canonical export boundary | Adapter required |
-| KimiBrain | Documented future provider; not integrated | Not applicable |
+| Workspace | Current build |
+| --- | --- |
+| Project Setup | ![Project Setup](docs/screenshots/01-project-setup.png) |
+| Visual Movie DNA | ![Visual Movie DNA](docs/screenshots/13-movie-dna-board.png) |
+| Story v2 | ![Story v2](docs/screenshots/16-story-structure.png) |
+| Character States | ![Character States](docs/screenshots/22-character-states.png) |
+| Asset Library | ![Asset Library](docs/screenshots/24-asset-library.png) |
+| Full Screenplay | ![Full Screenplay](docs/screenshots/29-full-screenplay.png) |
+| Sequence Planner | ![Sequence Planner](docs/screenshots/33-sequence-planner.png) |
+| JSON Prompt | ![JSON Prompt](docs/screenshots/40-json-prompt.png) |
+| Reference Package | ![Reference Package](docs/screenshots/41-sequence-reference-package.png) |
 
-No provider listed above sponsors, endorses, owns, or officially partners with Continuity Studio.
+Browse the [complete 57-image screenshot gallery](docs/SCREENSHOTS.md).
 
 ## Install
 
-### Windows release
+### Windows installer or portable app
 
-Download the installer or portable executable from [GitHub Releases](https://github.com/momorzq-oss/Continuity-Studio/releases). Windows packages are currently unsigned, so SmartScreen may show the standard unknown-publisher warning.
+Download the current installer or portable executable from [GitHub Releases](https://github.com/momorzq-oss/Continuity-Studio/releases). Windows packages are currently unsigned, so Microsoft Defender SmartScreen may display the standard unknown-publisher warning.
 
-### Source and multilingual CLI setup
+### Install from source
 
-Requirements: Node.js 20.19+ (Node.js 22 LTS recommended), npm 10+, and Git for cloning. Python, FFmpeg, and an external database are **not required** by v1.0.0.
+Requirements: Node.js 20.19 or newer (Node.js 22 LTS recommended), npm 10 or newer, and Git when cloning.
 
 ```bash
 git clone https://github.com/momorzq-oss/Continuity-Studio.git
 cd Continuity-Studio
 npm run setup
+npm run desktop:dev
 ```
 
-The installer prompts are available in four languages:
+The CLI setup prompts support English, Arabic, Spanish, and Chinese:
 
 ```bash
-npm run setup -- --lang en   # English
-npm run setup -- --lang ar   # العربية
-npm run setup -- --lang es   # Español
-npm run setup -- --lang zh   # 中文
+npm run setup -- --lang en
+npm run setup -- --lang ar
+npm run setup -- --lang es
+npm run setup -- --lang zh
 ```
 
-Then run `npm run desktop:dev`. See [Installation](INSTALLATION.md) and [Quick Start](QUICK_START.md).
+For non-interactive setup, append `--yes`. See [Installation](docs/INSTALLATION.md) for desktop, browser-development, production, and troubleshooting instructions.
 
-## Screenshots
+## Quick tutorial
 
-| Workspace | Preview |
-| --- | --- |
-| Reference setup | ![Reference setup](screenshots/reference-setup.png) |
-| Asset and continuity sheets | ![Assets](screenshots/asset-workspace.png) |
-| Scene assets | ![Scenes](screenshots/scene-assets.png) |
-| Storyboard | ![Storyboard](screenshots/storyboard.png) |
-| Platform prompt compiler | ![Prompt compiler](screenshots/prompt-compiler.png) |
-| Continuity inspector | ![Continuity inspector](screenshots/continuity-inspector.png) |
+1. Create a project and choose **Full** for automatic phase execution or **Phases** for approval after each block.
+2. Select the Movie DNA categories, review the Movie DNA Board, generate or select the master frame, then lock Movie DNA.
+3. Create Story v2, inspect its structure/timeline/arcs, approve it, and lock the version you want downstream.
+4. Build the Film Bible, analyze characters, upload the protected main-character source, and generate the required character sheets.
+5. Review the Asset Manifest and Image Asset Library. Approve or version assets instead of silently replacing locked records.
+6. Build Full Script v2, verify exact dialogue, then plan shots and timed sequences.
+7. Open a sequence. Choose a Platform Profile, edit the Normal or JSON Prompt, validate, and save a prompt version.
+8. Review `@Image` numbering and upload order, then download or copy the sequence reference package.
+9. Generate the video in the provider's own product. Generated-video import and automated continuity review are the next planned production blocks.
+10. Export the structured project ZIP at any time.
 
-All screenshots use the fictional “The Last Camp” demonstration project and contain no private uploads or personal project data.
+## Provider status
 
-See the [complete screenshot gallery](docs/SCREENSHOTS.md) for project creation, Production Agent, story, characters, sequences, provider settings, export, and About screens.
+| Provider or engine | v1.1.0 support | Credentials |
+| --- | --- | --- |
+| Built-in local engine | Working planning pipeline and deterministic PNG previsual renderer | None |
+| Codex | Working optional production supervision through Codex App Server | ChatGPT/Codex sign-in |
+| OpenAI API | Working optional text-phase provider | `OPENAI_API_KEY` |
+| OpenAI-compatible local model | Working optional text provider | Local server configuration |
+| Seedance | Versioned prompt profile, validation, `@Image` map, manual handoff | No direct video API |
+| Higgsfield | Versioned prompt profile, reference package, manual handoff | No direct video API |
+| MiniMax | Versioned prompt profile, reference package, manual handoff | No direct video API |
+| Veo, Kling, Runway, Sora | Versioned prompt profiles and manual handoff | No direct video APIs |
+| Custom | Editable provider profile and manual handoff | Depends on user configuration |
+
+Provider names describe compatible prompt workflows. They do not imply sponsorship, endorsement, ownership, or an official partnership.
+
+## Local storage and privacy
+
+- Development projects are stored under `data/projects/` and are ignored by Git.
+- Installed Windows projects are stored in the user's Documents/Continuity Studio area.
+- Original reference files are copied into protected project storage and are not overwritten by generated derivatives.
+- Secrets belong only in the ignored `.env` file or the app's credential flow.
+- The repository does not require an external database, Python, or FFmpeg for v1.1.0.
 
 ## Documentation
 
-- [Installation](INSTALLATION.md) · [Quick Start](QUICK_START.md) · [User Guide](USER_GUIDE.md)
-- [English, Arabic, Spanish, and Chinese documentation index](docs/LANGUAGES.md)
-- [Platforms and provider limitations](PLATFORMS.md)
-- [Architecture](ARCHITECTURE.md) · [Provider development](docs/PROVIDER_DEVELOPMENT.md)
-- [Main Character Tutorial](docs/MAIN_CHARACTER_TUTORIAL.md)
-- [Asset Tutorial](docs/ASSET_TUTORIAL.md) · [Scene Tutorial](docs/SCENE_TUTORIAL.md)
-- [Complete Movie Tutorial](docs/COMPLETE_MOVIE_TUTORIAL.md)
-- [Troubleshooting](TROUBLESHOOTING.md) · [Roadmap](ROADMAP.md)
+- [Installation](docs/INSTALLATION.md) · [User Guide](docs/USER_GUIDE.md) · [Workflow](docs/WORKFLOW.md)
+- [Screenshot Gallery](docs/SCREENSHOTS.md) · [Troubleshooting](docs/TROUBLESHOOTING.md) · [Roadmap](docs/ROADMAP.md)
+- [Architecture](ARCHITECTURE.md) · [Detailed Architecture](docs/ARCHITECTURE.md)
+- [Platform Profiles and Limitations](PLATFORMS.md) · [Provider Development](docs/PROVIDER_DEVELOPMENT.md)
+- [Main Character Tutorial](docs/MAIN_CHARACTER_TUTORIAL.md) · [Asset Tutorial](docs/ASSET_TUTORIAL.md) · [Scene Tutorial](docs/SCENE_TUTORIAL.md)
+- [Complete Movie Tutorial](docs/COMPLETE_MOVIE_TUTORIAL.md) · [AI Filmmaking Visual Guide Knowledge](docs/AI_FILMMAKING_VISUAL_GUIDE_KNOWLEDGE.md)
+- [Languages](docs/LANGUAGES.md) · [About BURABEEH](docs/ABOUT_BURABEEH.md)
 - [Contributing](CONTRIBUTING.md) · [Security](SECURITY.md) · [Code of Conduct](CODE_OF_CONDUCT.md)
-
-## Provider-independent identity
-
-Continuity Studio owns stable IDs such as `CHAR_RASHID_001`. A platform compiler may temporarily map that ID to `@Image 1`, “Reference image 1,” or another provider-specific label. The permanent identity never changes:
-
-```text
-Canonical Prompt → Provider Adapter → Provider-Specific Prompt
-CHAR_RASHID_001  → Seedance         → @Image 1
-```
 
 ## Development checks
 
 ```bash
 npm run typecheck
 npm test
+npm run docs:check
 npm run build
 ```
-
-## About the creator
-
-Mohammed Al Marzooqi, known online as Burabeeh, is an Emirati AI creator, independent filmmaker, software experimenter, and technology enthusiast from the United Arab Emirates. Continuity Studio grew from his experience solving identity, reference, scene, storyboard, prompt, and continuity problems in AI-assisted filmmaking. Read the [full biography](docs/ABOUT_BURABEEH.md).
 
 ## License
 
 Copyright 2026 Mohammed Al Marzooqi. Licensed under the [Apache License 2.0](LICENSE).
-
-## Credits
-
-Continuity Studio uses TypeScript, React, Express, Electron, Vite, Vitest, the OpenAI SDK, and Codex packages. It can format manual workflows for Seedance, MiniMax, and Higgsfield. These names identify compatible technology formats only and do not imply sponsorship or endorsement.

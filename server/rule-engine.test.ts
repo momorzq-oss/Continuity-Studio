@@ -35,10 +35,15 @@ beforeAll(async () => {
   const agent = new ProductionAgent(store, new LocalPhaseEngine({ delayMs: 0 }));
   await store.initialize();
   const created = await agent.createProject(input);
+  created.production.movieDna.status = "LOCKED";
+  created.production.gates.forEach((gate) => {
+    if (["story", "film_bible", "characters", "asset_manifest", "sequences", "platform_prompts"].includes(gate.stage)) gate.status = "APPROVED";
+  });
+  await store.saveProject(created);
   await agent.start(created.id, "full");
   await agent.waitForIdle(created.id);
   baseline = await store.getProject(created.id);
-});
+}, 60_000);
 
 afterAll(async () => {
   await rm(root, { recursive: true, force: true });

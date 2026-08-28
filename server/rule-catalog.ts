@@ -6,6 +6,7 @@ import sequenceConfig from "../rules/sequence_rules.json";
 import frameConfig from "../rules/frame_rules.json";
 import generationConfig from "../rules/generation_rules.json";
 import modelConfig from "../rules/model_rules.json";
+import visualGuideConfig from "../rules/visual_guide_rules.json";
 import type { RuleDefinition, RuleProfile, RuleProfileType } from "../src/types.js";
 
 interface RuleConfigFile {
@@ -22,6 +23,7 @@ const configFiles = [
   frameConfig,
   generationConfig,
   modelConfig,
+  visualGuideConfig,
 ] as unknown as RuleConfigFile[];
 
 export const FILM_RULES: RuleDefinition[] = configFiles.flatMap((file) =>

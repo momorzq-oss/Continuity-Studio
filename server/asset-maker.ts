@@ -11,16 +11,38 @@ import type {
 } from "../src/types.js";
 import type { ImageGenerationProvider } from "./image-generation/provider.js";
 import { LocalReferenceImageProvider } from "./image-generation/local-provider.js";
+import { lockedMovieDnaPrompt } from "./production-workflow.js";
+import { manifestCategoryFolder, newAttemptId, syncManifestRuntime } from "./asset-manifest.js";
 import type { ProjectStore } from "./store.js";
 
 const stamp = () => new Date().toISOString();
 const fileToken = (value: string) => value.toLowerCase().replace(/[^a-z0-9_-]+/g, "-");
+const assetFolder = (asset: AssetEntity, mainId?: string) => {
+  if (asset.manifestCategory) return manifestCategoryFolder(asset.manifestCategory);
+  if (asset.id === "CHAR_MAIN_001" || asset.sourceReferenceIds.includes(mainId ?? "__none__")) return "main_character";
+  if (asset.category === "character") return "characters";
+  if (asset.category === "creature") return "creatures";
+  if (asset.category === "animal") return "animals";
+  if (asset.category === "location") return "locations";
+  if (asset.category === "building") return "buildings";
+  if (asset.category === "room" || asset.category === "interior") return "rooms";
+  if (asset.category === "vehicle") return "vehicles";
+  if (asset.category === "weapon") return "weapons";
+  if (asset.category === "wardrobe" || asset.category === "costume") return "costumes";
+  if (asset.category === "accessory") return "accessories";
+  if (asset.category === "object") return "objects";
+  return "props";
+};
 
 export class AssetMaker {
   constructor(
     private readonly store: ProjectStore,
-    private readonly provider: ImageGenerationProvider = new LocalReferenceImageProvider(),
-  ) {}
+    provider?: ImageGenerationProvider,
+  ) {
+    this.provider = provider ?? new LocalReferenceImageProvider();
+  }
+
+  private readonly provider: ImageGenerationProvider;
 
   reconcileProtectedReferences(project: MovieProject) {
     const database = project.memory.database;
@@ -31,8 +53,6 @@ export class AssetMaker {
       if (!main.linkedAssetIds.includes(protagonist.id)) main.linkedAssetIds.push(protagonist.id);
       protagonist.sourceReferenceIds = [...new Set([...protagonist.sourceReferenceIds, main.id])];
       protagonist.referenceImages = [...new Set([main.sourcePath, ...protagonist.referenceImages])];
-      protagonist.generatedImagePath ??= main.sourcePath;
-      protagonist.thumbnailPath ??= main.thumbnailPath;
       protagonist.critical = true;
       database.storyAssetRequirements.find((item) => item.id === "REQ_MAIN_CHARACTER_SOURCE")!.assetId = protagonist.id;
       if (!database.assetLineage.some((item) => item.assetId === protagonist.id && item.operation === "UPLOAD")) {
@@ -41,7 +61,8 @@ export class AssetMaker {
     }
     for (const reference of database.projectReferences) {
       if (reference === main) continue;
-      const asset = database.assets.find((item) => item.category === reference.type && !item.sourceReferenceIds.length);
+      const asset = database.assets.find((item) => item.id === reference.assetId)
+        ?? database.assets.find((item) => item.category === reference.type && !item.sourceReferenceIds.length);
       if (!asset) continue;
       reference.linkedAssetIds = [...new Set([...reference.linkedAssetIds, asset.id])];
       asset.sourceReferenceIds = [...new Set([...asset.sourceReferenceIds, reference.id])];
@@ -51,8 +72,9 @@ export class AssetMaker {
 
   preview(project: MovieProject) {
     const database = project.memory.database;
-    const assetJobs = database.assets.filter((asset) => !asset.generatedImagePath || ["REGENERATE", "GENERATION_FAILED"].includes(asset.approvalState)).length;
-    const sheetJobs = database.assets.reduce((sum, asset) => sum + this.sheetAngles(asset).length, 0);
+    const generatable = database.assets.filter((asset) => project.production.assets.find((record) => record.id === asset.id)?.canGenerate !== false);
+    const assetJobs = generatable.filter((asset) => !asset.generatedImagePath || ["REGENERATE", "GENERATION_FAILED"].includes(asset.approvalState)).length;
+    const sheetJobs = generatable.reduce((sum, asset) => sum + this.sheetAngles(project, asset).length, 0);
     const sceneJobs = database.sceneAssets.filter((scene) => !scene.masterImagePath).length * 4;
     const storyboardJobs = database.storyboardFrames.filter((frame) => !frame.imagePath).length;
     const count = assetJobs + sheetJobs + sceneJobs + storyboardJobs;
@@ -74,43 +96,137 @@ export class AssetMaker {
   async generateAllAssets(project: MovieProject, force = false) {
     this.reconcileProtectedReferences(project);
     for (const asset of project.memory.database.assets) {
+      const record = project.production.assets.find((item) => item.id === asset.id);
+      if (record?.canGenerate === false) continue;
+      if (force && record?.status === "LOCKED" && asset.generatedImagePath) continue;
       if (force || !asset.generatedImagePath) await this.generateAsset(project, asset.id, force);
-      await this.generateContinuitySheet(project, asset.id, force);
+      if (asset.generatedImagePath && !record?.pendingVersion) await this.generateContinuitySheet(project, asset.id, force);
     }
+    syncManifestRuntime(project);
     return project;
   }
 
-  async generateAsset(project: MovieProject, assetId: string, force = false) {
+  async generateAsset(project: MovieProject, assetId: string, force = false, impactMode?: "FUTURE_ONLY" | "APPLY_ALL") {
     const asset = project.memory.database.assets.find((item) => item.id === assetId);
     if (!asset) throw new Error(`Asset ${assetId} was not found.`);
-    if (!force && asset.generatedImagePath) return asset;
-    if (force) asset.version += 1;
-    asset.approvalState = "GENERATING";
-    const outputBase = `generated_images/assets/${fileToken(asset.id)}-v${asset.version}`;
+    const record = project.production.assets.find((item) => item.id === assetId);
+    if (record?.canGenerate === false) throw new Error(`${record.name} is a protected source asset and cannot be generated or overwritten.`);
+    const activeFileExists = asset.generatedImagePath ? await this.store.projectFileExists(project.id, asset.generatedImagePath) : false;
+    if (!force && activeFileExists) return asset;
+    const stagedReplacement = Boolean(force && activeFileExists);
+    const targetVersion = stagedReplacement ? Math.max(asset.version + 1, (record?.pendingVersion?.version ?? 0) + 1) : Math.max(1, asset.version);
+    if (!stagedReplacement) {
+      asset.approvalState = "GENERATING";
+      asset.generationError = undefined;
+      if (record) {
+        record.status = "GENERATING";
+        record.generationError = undefined;
+      }
+    }
+    const attempt = record ? {
+      id: newAttemptId(),
+      version: targetVersion,
+      status: "GENERATING" as const,
+      prompt: record.generationPrompt || asset.generationPrompt,
+      createdAt: stamp(),
+    } : undefined;
+    if (attempt) (record!.generationAttempts ??= []).push(attempt);
+    const outputBase = `assets/${assetFolder(asset, project.preStorySetup.mainCharacterReferenceId)}/generated/${fileToken(asset.id)}-v${targetVersion}`;
+    const dependencyPaths = (record?.dependencyIds ?? []).flatMap((dependencyId) => {
+      const dependencyRecord = project.production.assets.find((item) => item.id === dependencyId);
+      const dependencyEntity = project.memory.database.assets.find((item) => item.id === dependencyId);
+      return [dependencyRecord?.imagePath, dependencyEntity?.generatedImagePath];
+    }).filter((value): value is string => Boolean(value));
     const job = await this.runJob(project, {
       targetType: "ASSET_MASTER",
       targetId: asset.id,
-      prompt: asset.generationPrompt,
+      prompt: record?.generationPrompt || asset.generationPrompt,
       negativePrompt: asset.negativePrompt,
       referenceIds: asset.sourceReferenceIds,
-      referencePaths: asset.referenceImages,
-      width: 1024,
-      height: 1024,
+      referencePaths: [...asset.referenceImages, ...dependencyPaths],
+      width: 512,
+      height: 512,
       outputBase,
       label: asset.name,
     });
     asset.generationJobIds.push(job.id);
+    if (attempt) Object.assign(attempt, {
+      status: job.status === "GENERATED" ? "GENERATED" : "GENERATION_FAILED",
+      provider: job.provider,
+      model: job.model,
+      imagePath: job.resultPath,
+      thumbnailPath: job.thumbnailPath,
+      error: job.error,
+      completedAt: stamp(),
+    });
     if (job.status === "GENERATION_FAILED") {
-      asset.approvalState = "GENERATION_FAILED";
-      throw new Error(job.error || `Image generation failed for ${asset.id}.`);
+      const error = job.error || `Image generation failed for ${asset.id}.`;
+      if (!stagedReplacement) {
+        asset.approvalState = "GENERATION_FAILED";
+        asset.generationError = error;
+      }
+      if (record) {
+        record.generationError = error;
+        if (!stagedReplacement) record.status = "GENERATION_FAILED";
+        record.updatedAt = stamp();
+      }
+      asset.updatedAt = stamp();
+      return asset;
     }
+    if (stagedReplacement && record) {
+      const previousCandidate = record.pendingVersion;
+      record.pendingVersion = {
+        version: targetVersion,
+        prompt: record.generationPrompt || asset.generationPrompt,
+        imagePath: job.resultPath!,
+        thumbnailPath: job.thumbnailPath,
+        provider: job.provider,
+        model: job.model,
+        generationJobId: job.id,
+        impactMode,
+        createdAt: stamp(),
+      };
+      record.generationError = undefined;
+      record.updatedAt = stamp();
+      if (previousCandidate && previousCandidate.imagePath !== job.resultPath) {
+        await this.store.removeProjectFile(project.id, previousCandidate.imagePath);
+        if (previousCandidate.thumbnailPath) await this.store.removeProjectFile(project.id, previousCandidate.thumbnailPath);
+      }
+      return asset;
+    }
+    asset.version = targetVersion;
     asset.generatedImagePath = job.resultPath;
     asset.thumbnailPath = job.thumbnailPath;
     asset.referenceImages = [...new Set([...(asset.sourceReferenceIds.length ? asset.referenceImages : []), job.resultPath!])];
     asset.provider = job.provider;
     asset.model = job.model;
+    asset.generationError = undefined;
     asset.approvalState = project.mode === "full" ? "LOCKED" : "REVIEW";
     asset.updatedAt = stamp();
+    if (record) {
+      record.version = targetVersion;
+      record.imagePath = job.resultPath;
+      record.thumbnailPath = job.thumbnailPath;
+      record.provider = job.provider;
+      record.model = job.model;
+      record.generationError = undefined;
+      record.status = asset.approvalState;
+      record.updatedAt = asset.updatedAt;
+      (record.versionHistory ??= []).push({
+        version: targetVersion,
+        description: record.description,
+        prompt: record.generationPrompt || asset.generationPrompt,
+        imagePath: job.resultPath,
+        thumbnailPath: job.thumbnailPath,
+        provider: job.provider,
+        model: job.model,
+        generationJobId: job.id,
+        status: asset.approvalState,
+        createdAt: asset.updatedAt,
+        activatedAt: asset.updatedAt,
+        fileRetained: true,
+      });
+    }
     const artifact = project.artifacts.assets as { assets?: Array<{ id: string; approvalState?: ApprovalState; locked: boolean; version?: number; referenceImages?: string[] }> } | undefined;
     const item = artifact?.assets?.find((entry) => entry.id === asset.id);
     if (item) {
@@ -126,7 +242,108 @@ export class AssetMaker {
       operation: force ? "REGENERATE" : "GENERATE",
       createdAt: stamp(),
     });
+    syncManifestRuntime(project);
     return asset;
+  }
+
+  async acceptPendingVersion(project: MovieProject, assetId: string) {
+    const asset = project.memory.database.assets.find((item) => item.id === assetId);
+    const record = project.production.assets.find((item) => item.id === assetId);
+    if (!asset || !record) throw new Error(`Asset ${assetId} was not found.`);
+    const candidate = record.pendingVersion;
+    if (!candidate) throw new Error(`${record.name} does not have a generated replacement preview.`);
+    if (!await this.store.projectFileExists(project.id, candidate.imagePath)) throw new Error("The replacement preview file is missing. Regenerate it before accepting.");
+    const previousImage = asset.generatedImagePath;
+    const previousThumbnail = asset.thumbnailPath;
+    const previousStatus = record.status;
+    if (previousImage) {
+      record.previousVersions.push({ version: record.version, description: record.description, createdAt: stamp() });
+      const history = (record.versionHistory ??= []).find((item) => item.version === record.version && item.imagePath === previousImage);
+      if (history) history.fileRetained = false;
+      else record.versionHistory.push({
+        version: record.version, description: record.description, prompt: record.generationPrompt || asset.generationPrompt,
+        imagePath: previousImage, thumbnailPath: previousThumbnail, provider: asset.provider, model: asset.model,
+        status: previousStatus, createdAt: asset.updatedAt, activatedAt: asset.updatedAt, fileRetained: false,
+      });
+    }
+    asset.version = candidate.version;
+    asset.generatedImagePath = candidate.imagePath;
+    asset.thumbnailPath = candidate.thumbnailPath;
+    asset.provider = candidate.provider;
+    asset.model = candidate.model;
+    asset.generationError = undefined;
+    asset.approvalState = ["APPROVED", "LOCKED"].includes(previousStatus) ? previousStatus : "REVIEW";
+    asset.updatedAt = stamp();
+    record.version = candidate.version;
+    record.imagePath = candidate.imagePath;
+    record.thumbnailPath = candidate.thumbnailPath;
+    record.provider = candidate.provider;
+    record.model = candidate.model;
+    record.generationError = undefined;
+    record.status = asset.approvalState;
+    record.pendingVersion = undefined;
+    record.updatedAt = asset.updatedAt;
+    (record.versionHistory ??= []).push({
+      version: candidate.version, description: record.description, prompt: candidate.prompt, imagePath: candidate.imagePath,
+      thumbnailPath: candidate.thumbnailPath, provider: candidate.provider, model: candidate.model, generationJobId: candidate.generationJobId,
+      status: asset.approvalState, createdAt: candidate.createdAt, activatedAt: asset.updatedAt, fileRetained: true,
+    });
+    project.memory.database.assetLineage.push({
+      id: `LINEAGE_${fileToken(asset.id).toUpperCase()}_${candidate.version}_${project.memory.database.assetLineage.length + 1}`,
+      assetId: asset.id,
+      sourceReferenceIds: [...asset.sourceReferenceIds],
+      operation: "REGENERATE",
+      createdAt: stamp(),
+    });
+    const sheet = project.memory.database.continuitySheets.find((item) => item.assetId === assetId);
+    if (sheet) {
+      sheet.version += 1;
+      sheet.status = "PLANNED";
+      sheet.views.forEach((view) => { view.imagePath = undefined; view.status = "PLANNED"; });
+      sheet.updatedAt = stamp();
+    }
+    if (previousImage && previousImage !== candidate.imagePath) await this.store.removeProjectFile(project.id, previousImage);
+    if (previousThumbnail && previousThumbnail !== candidate.thumbnailPath) await this.store.removeProjectFile(project.id, previousThumbnail);
+    syncManifestRuntime(project);
+    return asset;
+  }
+
+  async rejectPendingVersion(project: MovieProject, assetId: string) {
+    const record = project.production.assets.find((item) => item.id === assetId);
+    if (!record) throw new Error(`Asset ${assetId} was not found.`);
+    const candidate = record.pendingVersion;
+    if (!candidate) return record;
+    await this.store.removeProjectFile(project.id, candidate.imagePath);
+    if (candidate.thumbnailPath) await this.store.removeProjectFile(project.id, candidate.thumbnailPath);
+    record.pendingVersion = undefined;
+    record.updatedAt = stamp();
+    return record;
+  }
+
+  async reconcileFileStatus(project: MovieProject) {
+    let changed = false;
+    for (const record of project.production.assets) {
+      const paths = [record.imagePath, record.thumbnailPath].filter((value): value is string => Boolean(value));
+      if (!paths.length) continue;
+      const imageExists = record.imagePath ? await this.store.projectFileExists(project.id, record.imagePath) : false;
+      if (imageExists) continue;
+      record.generationError = `The active image file is missing on disk: ${record.imagePath}`;
+      record.status = "GENERATION_FAILED";
+      record.imagePath = undefined;
+      record.thumbnailPath = undefined;
+      record.updatedAt = stamp();
+      const entity = project.memory.database.assets.find((item) => item.id === record.id);
+      if (entity) {
+        entity.generatedImagePath = undefined;
+        entity.thumbnailPath = undefined;
+        entity.generationError = record.generationError;
+        entity.approvalState = "GENERATION_FAILED";
+        entity.updatedAt = record.updatedAt;
+      }
+      changed = true;
+    }
+    if (changed) syncManifestRuntime(project);
+    return changed;
   }
 
   async generateContinuitySheet(project: MovieProject, assetId: string, force = false) {
@@ -139,10 +356,17 @@ export class AssetMaker {
       sheet = this.createSheet(project, asset);
       database.continuitySheets.push(sheet);
       asset.sheetId = sheet.id;
+    } else {
+      const requiredAngles = this.sheetAngles(project, asset);
+      for (const angle of requiredAngles) {
+        if (!sheet.views.some((view) => view.angle === angle)) {
+          sheet.views.push({ id: `${sheet.id}_${angle}`, sheetId: sheet.id, name: `${angle.replaceAll("_", " ")} view`, angle, priority: 100 - sheet.views.length, status: "PLANNED" });
+        }
+      }
     }
     for (const view of sheet.views) {
       if (view.imagePath && !force) continue;
-      const base = `generated_images/assets/${fileToken(asset.id)}-sheet-${view.angle.toLowerCase()}-v${sheet.version}`;
+      const base = `assets/${assetFolder(asset, project.preStorySetup.mainCharacterReferenceId)}/generated/${fileToken(asset.id)}-sheet-${view.angle.toLowerCase()}-v${sheet.version}`;
       const job = await this.runJob(project, {
         targetType: "SHEET_VIEW",
         targetId: view.id,
@@ -150,18 +374,25 @@ export class AssetMaker {
         negativePrompt: asset.negativePrompt,
         referenceIds: asset.sourceReferenceIds,
         referencePaths: [asset.generatedImagePath!, ...asset.referenceImages].filter(Boolean),
-        width: 1024,
-        height: 1024,
+        width: 384,
+        height: 384,
         outputBase: base,
         label: `${asset.name} ${view.name}`,
       });
       view.imagePath = job.resultPath;
       view.status = job.status === "GENERATED" ? "REVIEW" : job.status;
+      if (job.error) asset.generationError = job.error;
       asset.generationJobIds.push(job.id);
       database.assetLineage.push({ id: `LINEAGE_${view.id}_${sheet.version}`, assetId: asset.id, sourceReferenceIds: [...asset.sourceReferenceIds], operation: "SHEET_VIEW", createdAt: stamp() });
     }
     sheet.status = sheet.views.every((view) => Boolean(view.imagePath)) ? (project.mode === "full" ? "LOCKED" : "REVIEW") : "GENERATION_FAILED";
     sheet.updatedAt = stamp();
+    const character = project.production.characters.find((item) => item.id === asset.id);
+    if (character) {
+      character.sheetId = sheet.id;
+      character.sheetStatus = sheet.status;
+      character.updatedAt = sheet.updatedAt;
+    }
     return sheet;
   }
 
@@ -304,10 +535,27 @@ export class AssetMaker {
     return project;
   }
 
-  private sheetAngles(asset: AssetEntity): Array<ContinuitySheet["views"][number]["angle"]> {
-    if (["character", "creature", "animal"].includes(asset.category)) return ["MASTER", "FRONT", "PROFILE", "THREE_QUARTER", "DETAIL"];
-    if (["location", "interior"].includes(asset.category)) return ["MASTER", "FRONT", "DETAIL"];
-    return ["MASTER", "FRONT", "DETAIL"];
+  private sheetAngles(project: MovieProject, asset: AssetEntity): Array<ContinuitySheet["views"][number]["angle"]> {
+    if (asset.manifestCategory === "character_state") return ["MASTER", "FULL_BODY_FRONT", "CLOSE_FACE", "WARDROBE", "STORY_LOOK"];
+    if (asset.category === "character") {
+      const character = project.production.characters.find((item) => item.id === asset.id);
+      const sequenceCount = character?.relatedSequenceIds.length ?? 0;
+      const storyText = `${character?.description ?? ""} ${character?.states.map((state) => `${state.wardrobe} ${state.possessions.join(" ")}`).join(" ") ?? ""}`;
+      const angles: Array<ContinuitySheet["views"][number]["angle"]> = ["MASTER", "FRONT", "THREE_QUARTER"];
+      if (character?.category === "main" || asset.critical) angles.push("LEFT_PROFILE", "RIGHT_PROFILE", "FULL_BODY_FRONT", "FULL_BODY_SIDE", "CLOSE_FACE", "NEUTRAL_EXPRESSION", "WARDROBE", "STORY_LOOK");
+      else if (sequenceCount > 2) angles.push("PROFILE", "FULL_BODY_FRONT", "NEUTRAL_EXPRESSION", "WARDROBE");
+      if (/ride|camel|horse|vehicle|weapon|equipment|fight|run|chase/i.test(storyText)) angles.push("ACTION");
+      if (/scar|tattoo|mark|ring|amulet|dagger|sword|distinctive/i.test(storyText)) angles.push("DETAIL");
+      return [...new Set(angles)];
+    }
+    if (asset.category === "creature") return ["MASTER", "ANATOMY", "FRONT", "PROFILE", "BACK", "THREE_QUARTER", "ACTION", "DETAIL"];
+    if (asset.category === "animal") return ["MASTER", "ANATOMY", "FRONT", "PROFILE", "BACK", "THREE_QUARTER", "EQUIPMENT", "ACTION", "DETAIL"];
+    if (["location", "interior", "building", "room"].includes(asset.category)) return ["MASTER", "EXTERIOR", "INTERIOR", "DAY", "NIGHT", "DETAIL"];
+    if (asset.category === "vehicle") return ["MASTER", "FRONT", "PROFILE", "BACK", "INTERIOR", "DETAIL"];
+    if (["wardrobe", "costume", "accessory"].includes(asset.category)) return ["MASTER", "FRONT", "BACK", "DETAIL", "STORY_LOOK"];
+    if (["prop", "object", "weapon", "tool"].includes(asset.category)) return ["MASTER", "FRONT", "PROFILE", "BACK", "SCALE", "DAMAGE", "DETAIL"];
+    if (["effect", "period_reference"].includes(asset.category)) return ["MASTER", "DAY", "NIGHT", "DETAIL"];
+    return ["MASTER", "FRONT", "PROFILE", "BACK", "DETAIL"];
   }
 
   private createSheet(project: MovieProject, asset: AssetEntity): ContinuitySheet {
@@ -318,7 +566,7 @@ export class AssetMaker {
       projectId: project.id,
       assetId: asset.id,
       referenceIds: [...asset.sourceReferenceIds],
-      views: this.sheetAngles(asset).map((angle, index) => ({ id: `${sheetId}_${angle}`, sheetId, name: `${angle.replace("_", " ")} view`, angle, priority: 100 - index, status: "PLANNED" })),
+      views: this.sheetAngles(project, asset).map((angle, index) => ({ id: `${sheetId}_${angle}`, sheetId, name: `${angle.replaceAll("_", " ")} view`, angle, priority: 100 - index, status: "PLANNED" })),
       status: "PLANNED",
       version: 1,
       createdAt: timestamp,
@@ -340,6 +588,12 @@ export class AssetMaker {
   }) {
     const database = project.memory.database;
     const timestamp = stamp();
+    const movieDnaContext = lockedMovieDnaPrompt(project);
+    const masterFramePath = project.production.movieDna.masterFrame?.status === "GENERATED" ? project.production.movieDna.masterFrame.path : undefined;
+    const prompt = movieDnaContext
+      ? `${movieDnaContext}\n\nGENERATION TARGET\n${input.prompt}\n\nPreserve all exact identity references. The Movie DNA Master Frame is a style reference only and must never replace character identity.`
+      : input.prompt;
+    const referencePaths = [...new Set([...input.referencePaths, ...(masterFramePath ? [masterFramePath] : [])])];
     const job: ImageGenerationJob = {
       id: `IMGJOB_${String(database.imageGenerationJobs.length + 1).padStart(5, "0")}`,
       projectId: project.id,
@@ -347,10 +601,10 @@ export class AssetMaker {
       targetId: input.targetId,
       provider: this.provider.id,
       model: this.provider.model,
-      prompt: input.prompt,
+      prompt,
       negativePrompt: input.negativePrompt,
       referenceIds: [...input.referenceIds],
-      referencePaths: [...new Set(input.referencePaths.filter(Boolean))],
+      referencePaths: [...new Set(referencePaths.filter(Boolean))],
       width: input.width,
       height: input.height,
       estimatedCost: 0,
@@ -363,8 +617,19 @@ export class AssetMaker {
     };
     database.imageGenerationJobs.push(job);
     try {
-      if (job.requiresApproval && !job.approvedToSpend) throw new Error("Paid generation requires explicit approval.");
-      const result = await this.provider.generate({ id: job.id, prompt: job.prompt, negativePrompt: job.negativePrompt, width: job.width, height: job.height, referencePaths: job.referencePaths, label: input.label, kind: job.targetType });
+      // Pressing a Generate/Retry control is the explicit approval for this queued provider call.
+      job.approvedToSpend = true;
+      const referenceImages = (await Promise.all(job.referencePaths.slice(0, 4).map(async (relative) => {
+        try {
+          const data = await this.store.readProjectBinary(project.id, relative);
+          const extension = relative.toLowerCase().split(".").pop();
+          const mimeType = extension === "jpg" || extension === "jpeg" ? "image/jpeg" : extension === "webp" ? "image/webp" : "image/png";
+          return { data, filename: relative.split("/").at(-1) || "reference.png", mimeType };
+        } catch {
+          return undefined;
+        }
+      }))).filter((item) => item !== undefined);
+      const result = await this.provider.generate({ id: job.id, prompt: job.prompt, negativePrompt: job.negativePrompt, width: job.width, height: job.height, referencePaths: job.referencePaths, referenceImages, label: input.label, kind: job.targetType });
       job.resultPath = await this.store.writeProjectBinary(project.id, `${input.outputBase}.png`, result.image);
       job.thumbnailPath = await this.store.writeProjectBinary(project.id, `${input.outputBase}-thumb.png`, result.thumbnail);
       job.provider = result.provider;

@@ -21,6 +21,19 @@ import { ProjectStore } from "./store.js";
 import { filmRuleEngine } from "./rule-engine.js";
 import { AssetMaker } from "./asset-maker.js";
 import { PlatformPromptCompiler } from "./platform-prompt-compiler.js";
+import type { ImageGenerationProvider } from "./image-generation/provider.js";
+import {
+  analyzeCharacters,
+  approveAssets,
+  approveCharacters,
+  approveFilmBible,
+  approveStory,
+  buildAssetManifest,
+  compileProductionPrompts,
+  planSequences,
+} from "./production-workflow.js";
+import { StoryBrain } from "./story-brain.js";
+import { FilmBibleService } from "./film-bible.js";
 
 export class AgentConflictError extends Error {}
 
@@ -56,13 +69,18 @@ export class ProductionAgent {
   private readonly controllers = new Map<string, AbortController>();
   readonly assetMaker: AssetMaker;
   readonly promptCompiler = new PlatformPromptCompiler();
+  readonly storyBrain: StoryBrain;
+  readonly filmBible: FilmBibleService;
 
   constructor(
     readonly store: ProjectStore,
     readonly engine: PhaseEngine,
     private readonly logger?: StructuredLogger,
+    imageProvider?: ImageGenerationProvider,
   ) {
-    this.assetMaker = new AssetMaker(store);
+    this.assetMaker = new AssetMaker(store, imageProvider);
+    this.storyBrain = new StoryBrain(engine);
+    this.filmBible = new FilmBibleService(engine);
   }
 
   async createProject(input: Parameters<ProjectStore["createProject"]>[0]) {
@@ -79,8 +97,20 @@ export class ProductionAgent {
     if (!project.preStorySetup.completed) {
       throw new AgentConflictError("Complete Pre-Story Reference Setup before the Story Agent starts. AI-first mode can continue without uploads; Reference-first requires at least one reference.");
     }
+    if (project.production.movieDna.status !== "LOCKED") {
+      throw new AgentConflictError("Lock Movie DNA before the Production Agent creates the Story. Open Movie DNA, review the visual choices, then select Lock Movie DNA.");
+    }
     if (mode) project.mode = mode;
     if (instruction?.trim()) project.idea = instruction.trim();
+
+    const workflowIncomplete = project.production.gates.find((gate) => ["story", "film_bible", "characters", "asset_manifest", "sequences", "platform_prompts"].includes(gate.stage) && !["APPROVED", "LOCKED"].includes(gate.status));
+    if (workflowIncomplete) {
+      project.messages.push(message("agent", project.mode === "full" ? "Full gated production started. I will build the approved-ready Story, Film Bible, character analysis, asset manifest, sequences, and platform prompt package." : `Phase mode started at ${workflowIncomplete.stage.replaceAll("_", " ")}. I will stop for your approval.`));
+      if (project.mode === "full") await this.runFullGatedProduction(project, instruction);
+      else await this.advanceGatedProduction(project, instruction);
+      await this.store.saveProject(project);
+      return project;
+    }
 
     const failed = project.phases.find((phase) => phase.state === "failed");
     if (failed) {
@@ -112,6 +142,18 @@ export class ProductionAgent {
       throw new AgentConflictError("Wait for the current phase to finish before approving.");
     }
     const project = await this.store.getProject(projectId);
+    const productionReview = project.production.gates.find((gate) => gate.status === "REVIEW" && ["story", "film_bible", "characters", "asset_manifest", "sequences"].includes(gate.stage));
+    if (productionReview) {
+      if (productionReview.stage === "story") approveStory(project);
+      else if (productionReview.stage === "film_bible") approveFilmBible(project);
+      else if (productionReview.stage === "characters") approveCharacters(project);
+      else if (productionReview.stage === "asset_manifest") approveAssets(project);
+      else if (productionReview.stage === "sequences") compileProductionPrompts(project);
+      project.messages.push(message("agent", `${productionReview.stage.replaceAll("_", " ")} approved. The next production gate is ready.`));
+      if (productionReview.stage !== "sequences") await this.advanceGatedProduction(project);
+      await this.store.saveProject(project);
+      return project;
+    }
     const current = project.phases.find((phase) => phase.state === "awaiting_approval");
     if (!current) throw new AgentConflictError("There is no phase awaiting approval.");
     if (current.id === "assets") {
@@ -144,6 +186,17 @@ export class ProductionAgent {
       throw new AgentConflictError("Wait for the current phase to finish before regenerating.");
     }
     const project = await this.store.getProject(projectId);
+    const productionReview = project.production.gates.find((gate) => gate.status === "REVIEW" && ["story", "film_bible", "characters", "asset_manifest", "sequences"].includes(gate.stage));
+    if (productionReview) {
+      if (productionReview.stage === "story") await this.storyBrain.generate(project, feedback || project.production.story.input, project.production.story.mode, "REGENERATE");
+      else if (productionReview.stage === "film_bible") await this.filmBible.generate(project, feedback);
+      else if (productionReview.stage === "characters") analyzeCharacters(project);
+      else if (productionReview.stage === "asset_manifest") buildAssetManifest(project);
+      else if (productionReview.stage === "sequences") planSequences(project);
+      project.messages.push(message("agent", `${productionReview.stage.replaceAll("_", " ")} regenerated${feedback ? ` with your note: “${feedback.trim()}”` : ""}.`));
+      await this.store.saveProject(project);
+      return project;
+    }
     const current =
       requestedPhase ??
       project.phases.find((phase) => phase.state === "awaiting_approval")?.id ??
@@ -223,6 +276,12 @@ export class ProductionAgent {
       return project;
     }
 
+    if (project.production.gates.find((gate) => gate.stage === "platform_prompts")?.status === "APPROVED") {
+      project.messages.push(message("agent", "The approved-ready production package is complete. Open Sequences to download the ordered references, copy the platform prompt, upload each generated video, and approve or target a regeneration after continuity inspection."));
+      await this.store.saveProject(project);
+      return project;
+    }
+
     if (!/^\s*(start|run|go|begin)\s*[.!]?$/i.test(text) && text.length > 12) {
       project.idea = text;
       await this.store.saveProject(project);
@@ -275,6 +334,30 @@ export class ProductionAgent {
       this.controllers.delete(projectId);
     });
     this.jobs.set(projectId, job);
+  }
+
+  private async advanceGatedProduction(project: MovieProject, instruction?: string) {
+    const workflow = project.production;
+    if (!["APPROVED", "LOCKED"].includes(workflow.story.status)) await this.storyBrain.generate(project, instruction, workflow.story.mode);
+    else if (!["APPROVED", "LOCKED"].includes(workflow.filmBible.status)) await this.filmBible.generate(project, instruction);
+    else if (!workflow.characters.length || workflow.gates.find((gate) => gate.stage === "characters")?.status !== "APPROVED") analyzeCharacters(project);
+    else if (!workflow.assets.length || workflow.gates.find((gate) => gate.stage === "asset_manifest")?.status !== "APPROVED") buildAssetManifest(project);
+    else if (!workflow.sequences.length) planSequences(project);
+    else compileProductionPrompts(project);
+  }
+
+  private async runFullGatedProduction(project: MovieProject, instruction?: string) {
+    await this.storyBrain.generate(project, instruction, "AI");
+    approveStory(project);
+    await this.filmBible.generate(project);
+    approveFilmBible(project);
+    analyzeCharacters(project);
+    approveCharacters(project);
+    buildAssetManifest(project);
+    approveAssets(project);
+    planSequences(project);
+    compileProductionPrompts(project);
+    project.messages.push(message("agent", `Full production package is ready from Studio Intelligence: approved Story, Film Bible, character analysis, ${project.production.assets.length} assets, ${project.production.sequences.length} sequences, reference-slot maps, and ${project.targetPlatform} prompts. External video generation remains a manual step.`));
   }
 
   private async run(projectId: string, signal: AbortSignal) {

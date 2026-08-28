@@ -1,5 +1,7 @@
 import { createHash } from "node:crypto";
 import { deflateSync } from "node:zlib";
+import jpeg from "jpeg-js";
+import { PNG } from "pngjs";
 import type { ImageGenerationInput, ImageGenerationOutput, ImageGenerationProvider } from "./provider.js";
 
 const crcTable = Array.from({ length: 256 }, (_, n) => {
@@ -47,19 +49,73 @@ const png = (width: number, height: number, seed: Buffer, kind: string) => {
   }
   const header = Buffer.alloc(13);
   header.writeUInt32BE(width, 0); header.writeUInt32BE(height, 4); header[8] = 8; header[9] = 6;
-  return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk("IHDR", header), chunk("IDAT", deflateSync(raw, { level: 9 })), chunk("IEND", Buffer.alloc(0))]);
+  return Buffer.concat([Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]), chunk("IHDR", header), chunk("IDAT", deflateSync(raw, { level: 1 })), chunk("IEND", Buffer.alloc(0))]);
+};
+
+const decodeReference = (input: ImageGenerationInput["referenceImages"][number]) => {
+  try {
+    if (input.mimeType === "image/png") return PNG.sync.read(input.data);
+    if (input.mimeType === "image/jpeg") return jpeg.decode(input.data, { useTArray: true, formatAsRGBA: true });
+  } catch {
+    return undefined;
+  }
+  return undefined;
+};
+
+const referenceDerivedPng = (width: number, height: number, source: NonNullable<ReturnType<typeof decodeReference>>, seed: Buffer) => {
+  const output = new PNG({ width, height });
+  const background = [Math.max(12, seed[0]! / 8), Math.max(12, seed[1]! / 8), Math.max(12, seed[2]! / 8), 255];
+  for (let offset = 0; offset < output.data.length; offset += 4) {
+    output.data[offset] = background[0]!;
+    output.data[offset + 1] = background[1]!;
+    output.data[offset + 2] = background[2]!;
+    output.data[offset + 3] = 255;
+  }
+  const margin = Math.max(8, Math.round(Math.min(width, height) * .045));
+  const scale = Math.min((width - margin * 2) / source.width, (height - margin * 2) / source.height);
+  const renderedWidth = Math.max(1, Math.round(source.width * scale));
+  const renderedHeight = Math.max(1, Math.round(source.height * scale));
+  const startX = Math.floor((width - renderedWidth) / 2);
+  const startY = Math.floor((height - renderedHeight) / 2);
+  for (let y = 0; y < renderedHeight; y += 1) {
+    const sourceY = Math.min(source.height - 1, Math.floor(y / scale));
+    for (let x = 0; x < renderedWidth; x += 1) {
+      const sourceX = Math.min(source.width - 1, Math.floor(x / scale));
+      const sourceOffset = (sourceY * source.width + sourceX) * 4;
+      const targetOffset = ((startY + y) * width + startX + x) * 4;
+      output.data[targetOffset] = source.data[sourceOffset]!;
+      output.data[targetOffset + 1] = source.data[sourceOffset + 1]!;
+      output.data[targetOffset + 2] = source.data[sourceOffset + 2]!;
+      output.data[targetOffset + 3] = source.data[sourceOffset + 3] ?? 255;
+    }
+  }
+  const gold = [232, 170, 58, 255];
+  for (let x = margin - 2; x <= width - margin + 1; x += 1) {
+    for (const y of [margin - 2, height - margin + 1]) {
+      const offset = (y * width + x) * 4;
+      output.data.set(gold, offset);
+    }
+  }
+  for (let y = margin - 2; y <= height - margin + 1; y += 1) {
+    for (const x of [margin - 2, width - margin + 1]) {
+      const offset = (y * width + x) * 4;
+      output.data.set(gold, offset);
+    }
+  }
+  return PNG.sync.write(output, { deflateLevel: 1 });
 };
 
 export class LocalReferenceImageProvider implements ImageGenerationProvider {
   readonly id = "continuity-local";
-  readonly model = "reference-renderer-v1";
+  readonly model = "reference-derivative-v2";
   readonly paid = false;
   estimateCost() { return 0; }
   async generate(input: ImageGenerationInput): Promise<ImageGenerationOutput> {
     const seed = createHash("sha256").update(`${input.id}|${input.prompt}|${input.referencePaths.join("|")}`).digest();
+    const source = input.referenceImages.map(decodeReference).find(Boolean);
     return {
-      image: png(input.width, input.height, seed, input.kind),
-      thumbnail: png(384, 216, seed, input.kind),
+      image: source ? referenceDerivedPng(input.width, input.height, source, seed) : png(input.width, input.height, seed, input.kind),
+      thumbnail: source ? referenceDerivedPng(384, 216, source, seed) : png(384, 216, seed, input.kind),
       provider: this.id,
       model: this.model,
     };

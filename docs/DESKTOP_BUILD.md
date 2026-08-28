@@ -36,7 +36,7 @@ npm run desktop:build
 npm run desktop:package
 ```
 
-Version 1.0.0 artifacts are placed in `release/windows-v1.0.0/`:
+Version 1.1.0 artifacts are placed in `release/windows-v1.1.0/`:
 
 - `Continuity-Studio-By-BURABEEH-0.2.1-x64-nsis.exe` — assisted installer; this is the file to double-click for installation.
 - `Continuity-Studio-By-BURABEEH-0.2.1-x64-portable.exe` — portable executable.

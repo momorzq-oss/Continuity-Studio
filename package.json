@@ -1,6 +1,6 @@
 {
   "name": "continuity-studio",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Continuity Studio By BURABEEH — a desktop AI filmmaking and continuity production workspace.",
   "author": {
     "name": "Mohammed Al Marzooqi (Burabeeh)"
@@ -15,7 +15,14 @@
   "bugs": {
     "url": "https://github.com/momorzq-oss/Continuity-Studio/issues"
   },
-  "keywords": ["ai-filmmaking", "ai-video", "storyboard", "continuity", "generative-ai", "film-production"],
+  "keywords": [
+    "ai-filmmaking",
+    "ai-video",
+    "storyboard",
+    "continuity",
+    "generative-ai",
+    "film-production"
+  ],
   "type": "module",
   "main": "desktop-dist/main.mjs",
   "scripts": {
@@ -37,8 +44,10 @@
     "@openai/codex": "0.144.4",
     "archiver": "8.0.0",
     "express": "5.2.1",
+    "jpeg-js": "^0.4.4",
     "lucide-react": "1.34.0",
     "openai": "7.5.0",
+    "pngjs": "^7.0.0",
     "react": "19.2.8",
     "react-dom": "19.2.8",
     "zod": "4.4.3"
@@ -46,7 +55,9 @@
   "devDependencies": {
     "@types/archiver": "8.0.0",
     "@types/express": "5.0.6",
+    "@types/jpeg-js": "^0.3.0",
     "@types/node": "26.3.0",
+    "@types/pngjs": "^6.0.5",
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.5",
     "@vitejs/plugin-react": "6.1.0",
@@ -70,7 +81,7 @@
       "node_modules/@openai/codex-win32-x64/**"
     ],
     "directories": {
-      "output": "release/windows-v1.0.0",
+      "output": "release/windows-v1.1.0",
       "buildResources": "assets"
     },
     "files": [
@@ -89,11 +100,15 @@
       "target": [
         {
           "target": "nsis",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         },
         {
           "target": "portable",
-          "arch": ["x64"]
+          "arch": [
+            "x64"
+          ]
         }
       ]
     },
