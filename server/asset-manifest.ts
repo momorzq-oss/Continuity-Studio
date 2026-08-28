@@ -512,7 +512,7 @@ export const manifestHealth = (project: MovieProject, record: ProductionAssetRec
   const hasImage = !missingOnDisk && Boolean(record.imagePath || entity?.generatedImagePath);
   return {
     hasImage,
-    missing: Boolean(record.required && !hasImage && record.missingDecision?.action !== "IGNORE"),
+    missing: Boolean(record.required && record.canGenerate !== false && !hasImage && record.missingDecision?.action !== "IGNORE"),
     failed: record.status === "GENERATION_FAILED" || Boolean(record.generationError),
     review: ["REVIEW", "GENERATED", "REGENERATE"].includes(record.status) || Boolean(record.pendingVersion),
   };

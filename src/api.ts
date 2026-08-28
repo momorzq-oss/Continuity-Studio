@@ -43,11 +43,21 @@ export const api = {
     `/api/projects/${projectId}/script/export?format=${encodeURIComponent(format)}`,
   sequenceReferencePackageUrl: (projectId: string, sequenceId: string, platform: string) =>
     `/api/projects/${projectId}/sequences/${sequenceId}/references?platform=${encodeURIComponent(platform)}`,
+  allSequenceReferencePackagesUrl: (projectId: string, platform: string) =>
+    `/api/projects/${projectId}/sequences/reference-packages?platform=${encodeURIComponent(platform)}`,
   createProject: (input: CreateProjectInput) =>
     request<MovieProject>("/api/projects", {
       method: "POST",
       body: JSON.stringify(input),
     }),
+  startAutomatic: (projectId: string) =>
+    request<MovieProject>(`/api/projects/${projectId}/automatic/start`, { method: "POST", body: "{}" }),
+  startManualGuided: (projectId: string) =>
+    request<MovieProject>(`/api/projects/${projectId}/manual/start`, { method: "POST", body: "{}" }),
+  manualGuidedAction: (projectId: string, action: "back" | "save" | "next") =>
+    request<MovieProject>(`/api/projects/${projectId}/manual/actions`, { method: "POST", body: JSON.stringify({ action }) }),
+  automaticAction: (projectId: string, action: "pause" | "resume" | "stop" | "manual_override" | "ai_main_character") =>
+    request<MovieProject>(`/api/projects/${projectId}/automatic/actions`, { method: "POST", body: JSON.stringify({ action }) }),
   updateMode: (projectId: string, mode: RunMode) =>
     request<MovieProject>(`/api/projects/${projectId}`, {
       method: "PATCH",

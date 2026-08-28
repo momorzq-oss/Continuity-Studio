@@ -657,9 +657,10 @@ function BibleStudio({ project, busy, onAction, onNavigate }: Props) {
 function CharacterStudio({ project, busy, onAction, onNavigate, onUploadReference, onGenerateAsset, onAssetState }: Props) {
   const ready = Boolean(project.production.filmBible.approvedVersion) || ["APPROVED", "LOCKED"].includes(project.production.filmBible.status);
   const [selectedId, setSelectedId] = useState(project.production.characters[0]?.id);
-  const [tab, setTab] = useState<"identity" | "references" | "states">("identity");
+  const [tab, setTab] = useState<"identity" | "references" | "states">(project.controlMode === "manual" && project.manualProduction.currentStep === "character_sheets" ? "references" : "identity");
   const [pending, setPending] = useState<PendingReferenceImage>();
   useEffect(() => { if (!project.production.characters.some((item) => item.id === selectedId)) setSelectedId(project.production.characters[0]?.id); }, [project.production.characters, selectedId]);
+  useEffect(() => { if (project.controlMode === "manual" && project.manualProduction.currentStep === "character_sheets") setTab("references"); }, [project.controlMode, project.manualProduction.currentStep]);
   const character = project.production.characters.find((item) => item.id === selectedId) ?? project.production.characters[0];
   const references = character ? project.memory.database.projectReferences.filter((item) => character.referenceIds.includes(item.id) || item.assetId === character.id) : [];
   const asset = character ? project.memory.database.assets.find((item) => item.id === character.id) : undefined;
@@ -705,7 +706,8 @@ type FullScriptView = "screenplay" | "sequence" | "scene" | "dialogue" | "shot" 
 
 function FullScriptStudio({ project, busy, onAction, onNavigate }: Props) {
   const script = project.memory.productionMemory.script;
-  const [view, setView] = useState<FullScriptView>("screenplay");
+  const guidedScriptView = project.controlMode === "manual" && project.manualProduction.currentStep === "dialogue" ? "dialogue" : project.controlMode === "manual" && project.manualProduction.currentStep === "shot_planner" ? "shot" : "screenplay";
+  const [view, setView] = useState<FullScriptView>(guidedScriptView);
   const [selectedId, setSelectedId] = useState(script.sequences[0]?.id ?? "");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("ALL");
@@ -715,6 +717,7 @@ function FullScriptStudio({ project, busy, onAction, onNavigate }: Props) {
   useEffect(() => {
     if (!script.sequences.some((sequence) => sequence.id === selectedId)) setSelectedId(script.sequences[0]?.id ?? "");
   }, [script.sequences, selectedId]);
+  useEffect(() => { setView(guidedScriptView); }, [guidedScriptView]);
   const selected = script.sequences.find((sequence) => sequence.id === selectedId) ?? script.sequences[0];
   const scenes = selected ? script.scenes.filter((scene) => scene.sequenceId === selected.id) : [];
   const currentScene = scenes[0];
@@ -859,8 +862,9 @@ function FullScriptStudio({ project, busy, onAction, onNavigate }: Props) {
 function SequenceStudio({ project, busy, onAction, onNavigate, onUploadVideo }: Props) {
   const script = project.memory.productionMemory.script;
   const [selectedId, setSelectedId] = useState(script.sequences[0]?.id ?? "");
-  const [workspaceSequenceId, setWorkspaceSequenceId] = useState<string | undefined>(() => script.sequences.some((sequence) => sequence.id === project.production.promptWorkspace.activeSequenceId) ? project.production.promptWorkspace.activeSequenceId : undefined);
+  const [workspaceSequenceId, setWorkspaceSequenceId] = useState<string | undefined>(() => project.controlMode === "manual" && project.manualProduction.currentStep === "sequence_workspace" ? project.production.promptWorkspace.activeSequenceId ?? script.sequences[0]?.id : script.sequences.some((sequence) => sequence.id === project.production.promptWorkspace.activeSequenceId) ? project.production.promptWorkspace.activeSequenceId : undefined);
   useEffect(() => { if (!script.sequences.some((sequence) => sequence.id === selectedId)) setSelectedId(script.sequences[0]?.id ?? ""); }, [script.sequences, selectedId]);
+  useEffect(() => { if (project.controlMode === "manual" && project.manualProduction.currentStep === "sequence_workspace" && !workspaceSequenceId) setWorkspaceSequenceId(project.production.promptWorkspace.activeSequenceId ?? script.sequences[0]?.id); }, [project.controlMode, project.manualProduction.currentStep, project.production.promptWorkspace.activeSequenceId, script.sequences, workspaceSequenceId]);
   const selected = script.sequences.find((sequence) => sequence.id === selectedId) ?? script.sequences[0];
   const shots = selected ? script.shots.filter((shot) => shot.sequenceId === selected.id).sort((a, b) => a.number - b.number) : [];
   const dialogue = selected ? script.dialogue.filter((line) => line.sequenceId === selected.id) : [];

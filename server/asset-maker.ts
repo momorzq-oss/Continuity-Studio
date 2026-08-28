@@ -432,7 +432,7 @@ export class AssetMaker {
       const job = await this.runJob(project, {
         targetType: "SHEET_VIEW",
         targetId: view.id,
-        prompt: `${asset.generationPrompt} Continuity sheet ${view.name}; ${view.angle.toLowerCase()} view; preserve the exact master identity and design.`,
+        prompt: `${asset.generationPrompt} Continuity sheet ${view.name}; ${view.angle.toLowerCase()} view; preserve the exact master identity and design.${asset.category === "character" ? " Professional neutral character-sheet lighting and background. Neutral base identity and clean base costume only. No sequence-specific damage, dirt, blood, weather, dramatic scene lighting, action state, expression drift, face change, body change, duplicate person, collage text, or watermark." : ""}`,
         negativePrompt: asset.negativePrompt,
         referenceIds: asset.sourceReferenceIds,
         referencePaths: [asset.generatedImagePath!, ...asset.referenceImages].filter(Boolean),
@@ -604,7 +604,7 @@ export class AssetMaker {
       const sequenceCount = character?.relatedSequenceIds.length ?? 0;
       const storyText = `${character?.description ?? ""} ${character?.states.map((state) => `${state.wardrobe} ${state.possessions.join(" ")}`).join(" ") ?? ""}`;
       const angles: Array<ContinuitySheet["views"][number]["angle"]> = ["MASTER", "FRONT", "THREE_QUARTER"];
-      if (character?.category === "main" || asset.critical) angles.push("LEFT_PROFILE", "RIGHT_PROFILE", "FULL_BODY_FRONT", "FULL_BODY_SIDE", "CLOSE_FACE", "NEUTRAL_EXPRESSION", "WARDROBE", "STORY_LOOK");
+      if (character?.category === "main" || asset.critical) angles.push("LEFT_PROFILE", "RIGHT_PROFILE", "FULL_BODY_FRONT", "FULL_BODY_SIDE", "FULL_BODY_BACK", "CLOSE_FACE", "NEUTRAL_EXPRESSION", "WARDROBE", "STORY_LOOK");
       else if (sequenceCount > 2) angles.push("PROFILE", "FULL_BODY_FRONT", "NEUTRAL_EXPRESSION", "WARDROBE");
       if (/ride|camel|horse|vehicle|weapon|equipment|fight|run|chase/i.test(storyText)) angles.push("ACTION");
       if (/scar|tattoo|mark|ring|amulet|dagger|sword|distinctive/i.test(storyText)) angles.push("DETAIL");

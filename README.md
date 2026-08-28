@@ -16,11 +16,11 @@ The application is designed around one difficult production problem: keeping **i
 
 ## Current release: v1.1.0
 
-v1.1.0 is a production-planning and prompt-compilation release. The current source build extends that workflow through generated-video import, attempt history, manual review decisions, approved End State transfer, the movie progress dashboard, and complete project export. Direct provider video generation, automated visual inspection of video pixels, and final movie assembly remain roadmap work and are not presented as finished features.
+v1.1.0 is a production-planning and prompt-compilation release. The current source build adds a restart-safe **Automatic Movie** director, generated-video import, attempt history, manual review decisions, approved End State transfer, the movie progress dashboard, and complete project export. Direct provider video generation, automated visual inspection of video pixels, and final movie assembly remain roadmap work and are not presented as finished features.
 
 ### Working now
 
-- Full and Phases production modes with approval gates and restart-safe local persistence.
+- Automatic Movie and Manual Guided modes using one compatible project format, approval system, mode switching, and restart-safe local persistence.
 - Project Setup for runtime, sequence duration, delivery format, language, rating, audio options, and production preferences.
 - Visual Movie DNA with **27 categories and 629 selectable options**, previews, comparisons, custom directions, version history, a permanent master frame, and downstream invalidation.
 - Integrated AI Filmmaking Visual Guide principles for identity locks, neutral character sheets, unique reference numbering, concise prompts, storyboard continuity, and reference-aware video prompting.
@@ -58,6 +58,20 @@ flowchart TD
 ```
 
 See the detailed [production workflow](docs/WORKFLOW.md) and [user guide](docs/USER_GUIDE.md).
+
+## Automatic Movie mode
+
+Choose **AUTOMATIC MOVIE**, enter an optional title, one movie brief, approximate runtime, languages, and a Main Character preference, then select **CREATE MY MOVIE**. Studio Brain selects global Movie DNA and a compatible versioned Platform Profile, develops the Story and Film Bible, analyses characters, and stops at the required protected Main Character checkpoint.
+
+At the checkpoint, upload a JPG, JPEG, PNG, or WEBP identity source and create its neutral character sheet, or choose **GENERATE MAIN CHARACTER WITH AI**. The original upload remains protected and separate from generated sheets. Automatic Production Director then resumes the existing asset, production-memory, Audio Bible, Full Script, Dialogue Lock, Shot Planner, Sequence Planner, Prompt State, reference-mapping, and reference-package services. It does not use a second filmmaking engine.
+
+Every completed stage and Studio Brain decision is saved to `project.json`. **Pause**, **Resume**, **Stop**, and **Manual Override** preserve completed work. If the backend closes during an active automatic run, the next launch continues from the first incomplete persisted stage. Asset generation has a maximum of three automatic attempts; important failures pause with **NEEDS USER REVIEW**, while unrelated work remains preserved.
+
+## Manual Guided mode
+
+Choose **MANUAL PRODUCTION** to open **DESCRIBE YOUR MOVIE**. Enter an optional title, one brief description, approximate duration, language, dialogue language, and an optional preferred platform. Select **NEXT**. Studio Brain pre-fills Project Setup and recommends editable Genre, combined genre, Cinematic Style, Photography, Camera, Lens, Color Grade, Lighting, Image Feel, Period, Environment, aspect ratio, sequence duration, audio, and Platform Profile settings.
+
+Manual Mode never automatically approves those recommendations. A persistent 14-stage progress bar explains the current step, why it matters, what is recommended, what is required, and what comes next. Use **BACK**, **SAVE**, **NEXT**, **APPROVE AND NEXT**, or **LOCK AND NEXT** to move through the existing production screens. Missing requirements disable NEXT with a specific explanation. Reopening the app shows **CONTINUE WHERE YOU LEFT OFF** with **RESUME** and **VIEW PROJECT**. Manual and Automatic Mode can be switched at any time without restarting or converting project data.
 
 ## Permanent Project Image storage
 

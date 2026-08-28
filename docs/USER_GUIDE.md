@@ -4,7 +4,23 @@ This guide covers the working v1.1.0 production flow in **Continuity Studio By B
 
 ## 1. Create a project
 
-Select **New movie project** and complete Project Setup. Required planning choices include the movie idea, runtime, sequence duration, story mode, and production mode. Optional audio and delivery settings are stored with the project so later agents and prompt compilers use the same intent.
+Select **New movie project**, then choose **AUTOMATIC MOVIE** or **MANUAL PRODUCTION**.
+
+**Automatic Movie** asks only for an optional title, brief movie idea, approximate runtime, main language, dialogue language, and Main Character preference. Select **CREATE MY MOVIE** once. Studio Brain chooses global Movie DNA and the target Platform Profile, creates Story, Film Bible, and character analysis, then pauses at the required Main Character checkpoint. Upload a protected identity and create its neutral sheet, or choose AI generation. The director resumes automatically and persists every stage and decision. Pause, Resume, Stop, and Manual Override never discard completed records.
+
+**Manual Production** begins with **DESCRIBE YOUR MOVIE**, not a large technical form. Enter an optional title, a brief description, approximate duration, language, dialogue language, and an optional preferred platform. Select **NEXT**. Studio Brain analyses the brief and pre-fills editable Project Setup and Visual Movie DNA recommendations. It does not approve them.
+
+The persistent Manual Guided bar shows 14 production groups: Brief, Setup, Movie DNA, Story, Film Bible, Characters, Assets, Continuity, Audio, Script, Shots, Sequences, Prompts, and Export. The detailed guided steps also include Movie DNA Board, Character Sheets, Asset Manifest, Asset Generation and Review, Story Timeline, Dialogue Lock, Shot Planner, Sequence Planner, and Sequence Workspace.
+
+At the bottom of every Manual screen:
+
+- **BACK** returns to the previous guided stage without deleting work.
+- **SAVE** persists the current stage and restart position.
+- **NEXT** moves only when the required data exists.
+- **APPROVE AND NEXT** makes the reviewed draft an approved production source before moving on.
+- **LOCK AND NEXT** protects a required permanent source before moving on.
+
+When NEXT is unavailable, the footer names the exact missing requirement, such as a Main Character reference or generated Main Character. Manual and Automatic Mode use the same records and services. Switching modes preserves the full project. When a saved Manual project is reopened, choose **RESUME** under **CONTINUE WHERE YOU LEFT OFF** to return to the last incomplete stage, or **VIEW PROJECT** to inspect it without changing the saved stage.
 
 Choose a Story mode:
 

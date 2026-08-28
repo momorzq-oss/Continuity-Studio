@@ -12,8 +12,10 @@ import { normalizeStoryDevelopmentState } from "./story-brain.js";
 import { normalizeFilmBibleState } from "./film-bible.js";
 import { createProductionMemoryLayer, normalizeProductionMemoryLayer, rebuildProductionMemory } from "./production-memory.js";
 import { normalizePermanentAssetFilename } from "./asset-storage.js";
+import { createAutomaticProductionState } from "./automatic-production-state.js";
+import { createManualProductionState } from "./manual-production-state.js";
 
-export const CURRENT_PROJECT_SCHEMA_VERSION = 16;
+export const CURRENT_PROJECT_SCHEMA_VERSION = 18;
 
 export const createProjectMemory = (projectId = "UNASSIGNED", config: Partial<ProjectConfig> = {}): ProjectMemory => ({
   approvedAssets: [],
@@ -69,6 +71,33 @@ export const migrateProject = (
   }
   const project = source as Partial<MovieProject>;
   if (!project.movieTitle) { project.movieTitle = project.title || "Untitled Movie"; changed = true; }
+  if (!project.controlMode) { project.controlMode = "manual"; changed = true; }
+  if (!project.automaticProduction) {
+    project.automaticProduction = createAutomaticProductionState(project.controlMode === "automatic", project.mainCharacterPreference);
+    changed = true;
+  } else {
+    const normalizedAutomatic = createAutomaticProductionState(project.controlMode === "automatic", project.mainCharacterPreference);
+    const previousStages = new Map(project.automaticProduction.stages?.map((stage) => [stage.id, stage]));
+    project.automaticProduction = {
+      ...normalizedAutomatic,
+      ...project.automaticProduction,
+      stages: normalizedAutomatic.stages.map((stage) => ({ ...stage, ...previousStages.get(stage.id) })),
+      history: Array.isArray(project.automaticProduction.history) ? project.automaticProduction.history : [],
+    };
+  }
+  if (!project.manualProduction) {
+    project.manualProduction = createManualProductionState(project.controlMode === "manual");
+    changed = true;
+  } else {
+    const normalizedManual = createManualProductionState(project.controlMode === "manual", project.manualProduction.preferredPlatform);
+    project.manualProduction = {
+      ...normalizedManual,
+      ...project.manualProduction,
+      completedSteps: Array.isArray(project.manualProduction.completedSteps) ? project.manualProduction.completedSteps : [],
+      visitedSteps: Array.isArray(project.manualProduction.visitedSteps) ? project.manualProduction.visitedSteps : [],
+      recommendations: Array.isArray(project.manualProduction.recommendations) ? project.manualProduction.recommendations : [],
+    };
+  }
   if (!project.storyMode) { project.storyMode = "AI_FIRST"; changed = true; }
   if (!project.era) { project.era = "Contemporary"; changed = true; }
   if (!project.aspectRatio) { project.aspectRatio = "2.39:1"; changed = true; }

@@ -4,8 +4,11 @@ Continuity Studio By BURABEEH keeps every production block connected to approved
 
 ## Choose a run mode
 
-- **Full mode** asks the Production Agent to continue through every available planning phase. Approval and lock requirements still apply where the workflow requires a human decision.
-- **Phases mode** stops after each major production block so the user can review, edit, approve, regenerate, or lock it.
+- **Automatic Movie** uses the existing production services through the restart-safe Automatic Production Director. One brief starts Movie DNA, Story, Film Bible, characters, numbered assets, production memory, Audio Bible, Full Script, dialogue locks, shots, sequences, Prompt States, reference mapping, and packages. It pauses at the protected Main Character checkpoint or a real **NEEDS USER REVIEW** condition.
+- **Manual Guided Mode** starts with one simple movie brief. Studio Brain pre-fills Setup and Movie DNA, then waits at every stage for BACK, SAVE, NEXT, APPROVE AND NEXT, or LOCK AND NEXT. A persisted 14-stage bar removes the need to hunt through navigation tabs.
+- **Full and Phases orchestration** remains compatible with existing projects and the Production Agent, while new Manual projects use the guided Phases behavior by default.
+
+Automatic and Manual Guided modes share the same project schema and editable screens. Either mode can switch to the other without converting or restarting the project. Manual Mode saves its last incomplete step and offers **CONTINUE WHERE YOU LEFT OFF** after restart.
 
 Both modes use the same project records and the same production services. Switching modes does not create a second project pipeline.
 

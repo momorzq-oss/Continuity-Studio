@@ -103,6 +103,8 @@ import {
   validateSequencePrompt,
 } from "./sequence-workspace.js";
 import { attachStoryboardGridReference, setSequenceStoryboardGrid } from "./storyboard-grid.js";
+import { AutomaticProductionConflictError, AutomaticProductionDirector } from "./automatic-production-director.js";
+import { ManualProductionConflictError, ManualProductionDirector } from "./manual-production-director.js";
 
 const targetPlatformSchema = z.enum(["Seedance", "Higgsfield", "MiniMax", "Veo", "Kling", "Runway", "Sora", "Custom"]);
 
@@ -157,6 +159,9 @@ const createProjectSchema = z.object({
   language: z.string().trim().min(2).max(80),
   visualStyle: z.string().trim().min(2).max(300),
   mode: modeSchema,
+  controlMode: z.enum(["manual", "automatic"]).default("manual"),
+  mainCharacterPreference: z.string().trim().max(500).optional(),
+  preferredPlatform: targetPlatformSchema.optional(),
   brain: brainSchema.optional(),
   storyMode: z.enum(["AI_FIRST", "REFERENCE_FIRST", "HYBRID"]).default("AI_FIRST"),
   era: z.string().trim().min(1).max(120).default("Contemporary"),
@@ -297,6 +302,8 @@ export const createRuntime = async (options: RuntimeOptions) => {
   const storyBrain = new StoryBrain(router);
   const filmBible = new FilmBibleService(router);
   const references = new ReferenceManager(store);
+  const automatic = new AutomaticProductionDirector(store, movieDna, storyBrain, filmBible, agent.assetMaker);
+  const manual = new ManualProductionDirector(store, movieDna, storyBrain, filmBible, agent.assetMaker);
   const app = express();
   app.disable("x-powered-by");
   app.use(express.json({ limit: "32mb" }));
@@ -884,7 +891,9 @@ export const createRuntime = async (options: RuntimeOptions) => {
     references.syncCharacterSheet(project, asset.id);
     syncManifestRuntime(project);
     await store.saveProject(project);
-    response.json(project);
+    if (project.controlMode === "automatic" && project.automaticProduction.status === "WAITING_FOR_MAIN_CHARACTER") {
+      response.status(202).json(await automatic.resume(project.id));
+    } else response.json(project);
   });
   app.get("/api/projects/:projectId/media", async (request, response) => {
     const relative = z.string().min(1).parse(request.query.path);
@@ -1096,6 +1105,20 @@ export const createRuntime = async (options: RuntimeOptions) => {
     response.status(202).json(await agent.regenerate(request.params.projectId, input.phase as PhaseId | undefined, input.feedback));
   });
   app.post("/api/projects/:projectId/agent/cancel", async (request, response) => response.status(202).json(await agent.cancel(request.params.projectId)));
+  app.post("/api/projects/:projectId/automatic/start", async (request, response) => response.status(202).json(await automatic.start(request.params.projectId)));
+  app.post("/api/projects/:projectId/automatic/actions", async (request, response) => {
+    const input = z.object({ action: z.enum(["pause", "resume", "stop", "manual_override", "ai_main_character"]) }).parse(request.body);
+    if (input.action === "pause") return response.json(await automatic.pause(request.params.projectId));
+    if (input.action === "stop") return response.json(await automatic.stop(request.params.projectId));
+    if (input.action === "manual_override") return response.json(await automatic.switchToManual(request.params.projectId));
+    if (input.action === "ai_main_character") return response.status(202).json(await automatic.continueWithAiMainCharacter(request.params.projectId));
+    return response.status(202).json(await automatic.resume(request.params.projectId));
+  });
+  app.post("/api/projects/:projectId/manual/start", async (request, response) => response.json(await manual.start(request.params.projectId)));
+  app.post("/api/projects/:projectId/manual/actions", async (request, response) => {
+    const input = z.object({ action: z.enum(["back", "save", "next"]) }).parse(request.body);
+    response.json(await manual.action(request.params.projectId, input.action));
+  });
   app.post("/api/projects/:projectId/brain/recover", async (request, response) => {
     const input = z.object({
       action: z.enum(["retry", "continue_local", "continue_codex", "switch_brain", "cancel"]),
@@ -1121,6 +1144,30 @@ export const createRuntime = async (options: RuntimeOptions) => {
       if (!relativePath || !await store.projectFileExists(project.id, relativePath)) throw new ProjectNotFoundError(`${record.name} does not have an available image file.`);
       response.setHeader("Content-Disposition", `attachment; filename="${record.filename.replaceAll('"', "")}"`);
       response.sendFile(store.resolveProjectFile(project.id, relativePath));
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/api/projects/:projectId/sequences/reference-packages", async (request, response, next) => {
+    try {
+      const project = await store.getProject(request.params.projectId);
+      const platform = targetPlatformSchema.parse(request.query.platform ?? project.targetPlatform) as TargetPlatform;
+      response.setHeader("Content-Type", "application/zip");
+      response.setHeader("Content-Disposition", `attachment; filename="${project.id}-${platform}-sequence-reference-packages.zip"`);
+      const archive = new ZipArchive({ zlib: { level: 9 } });
+      archive.on("error", next);
+      archive.pipe(response);
+      for (const sequence of project.memory.productionMemory.script.sequences) {
+        const pkg = sequenceReferencePackage(project, sequence.id, platform);
+        for (const file of pkg.files) {
+          if (await store.projectFileExists(project.id, file.sourcePath)) archive.file(store.resolveProjectFile(project.id, file.sourcePath), { name: `${pkg.folderName}/${file.packageFilename}` });
+        }
+        archive.append(pkg.record.normalPrompt, { name: `${pkg.folderName}/prompt.txt` });
+        archive.append(pkg.record.jsonPrompt, { name: `${pkg.folderName}/prompt.json` });
+        archive.append(`${JSON.stringify(pkg.manifest, null, 2)}\n`, { name: `${pkg.folderName}/reference_manifest.json` });
+      }
+      await archive.finalize();
     } catch (error) {
       next(error);
     }
@@ -1226,11 +1273,13 @@ export const createRuntime = async (options: RuntimeOptions) => {
     if (error instanceof z.ZodError) return response.status(400).json({ error: error.issues[0]?.message ?? "Invalid request." });
     if (error instanceof ProjectNotFoundError) return response.status(404).json({ error: error.message });
     if (error instanceof AgentConflictError) return response.status(409).json({ error: error.message });
+    if (error instanceof AutomaticProductionConflictError || error instanceof ManualProductionConflictError) return response.status(409).json({ error: error.message });
     const message = error instanceof Error ? error.message : "Unexpected server error.";
     void logger.error("backend", "Unhandled backend request error.", { message });
     response.status(500).json({ error: message });
   });
-  return { app, store, agent, router, settings, logger };
+  await automatic.resumeInterruptedJobs();
+  return { app, store, agent, automatic, router, settings, logger };
 };
 
 export const startContinuityServer = async (

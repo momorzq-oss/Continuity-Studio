@@ -4,6 +4,16 @@
 
 创建项目时，创意是全流程的输入。Full 模式连续执行故事到导出；Phases 模式在每个主要产物后等待审批。可以在代理未运行时切换模式。
 
+### 自动模式
+
+选择 **AUTOMATIC MOVIE** 后，输入电影简介、时长、语言和主角偏好，然后按 **CREATE MY MOVIE**。Studio Brain 会选择 Movie DNA 与 Platform Profile，创建 Story、Film Bible 和角色分析，并在必需的主角身份检查点暂停。你可以上传受保护的身份图并创建中性角色表，也可以选择由 AI 生成的虚构角色。每个阶段和决定都会保存；Pause、Resume、Stop、Manual Override 和重启恢复都不会丢失已完成的工作。
+
+### 手动引导模式
+
+选择 **MANUAL PRODUCTION** 后，应用先显示简洁的 **DESCRIBE YOUR MOVIE** 页面。输入可选片名、电影简介、预计时长、影片语言、对白语言，以及可选的首选平台，然后按 **NEXT**。Studio Brain 会分析简介，自动填写可编辑的 Project Setup 和 Visual Movie DNA 建议，但不会自动批准。
+
+固定进度栏显示从 Brief 到 Export 的 14 个阶段。使用 **BACK**、**SAVE**、**NEXT**、**APPROVE AND NEXT** 和 **LOCK AND NEXT**。如果缺少必需信息，NEXT 会停用并明确说明原因。重新打开项目时会显示 **CONTINUE WHERE YOU LEFT OFF**，可选择 **RESUME** 或 **VIEW PROJECT**。Manual 与 Automatic 模式可以互相切换，并保留所有项目数据、批准状态和参考图。
+
 ## 2. 写作前参考设置
 
 - **AI First：** 先由系统设计故事与资产。

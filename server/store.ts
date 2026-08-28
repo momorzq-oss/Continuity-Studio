@@ -35,6 +35,8 @@ import {
   createProjectMemory,
   migrateProject,
 } from "./project-schema.js";
+import { createAutomaticProductionState } from "./automatic-production-state.js";
+import { createManualProductionState } from "./manual-production-state.js";
 import { createProductionWorkflow } from "./production-workflow.js";
 import {
   activeAssetManifest,
@@ -162,9 +164,10 @@ export class ProjectStore {
   async createProject(input: CreateProjectInput, provider: ProviderInfo) {
     await this.initialize();
     const now = new Date().toISOString();
-    const { brain: selectedBrain = "local", mainCharacterReference: _pendingReference, ...rawConfig } = input;
+    const { brain: selectedBrain = "local", mainCharacterReference: _pendingReference, preferredPlatform, ...rawConfig } = input;
     const config: ProjectConfig = {
       ...rawConfig,
+      controlMode: rawConfig.controlMode ?? "manual",
       movieTitle: rawConfig.movieTitle?.trim() || rawConfig.title,
       sequenceDurationSeconds: rawConfig.sequenceDurationSeconds ?? Math.max(1, Math.round((rawConfig.runtimeMinutes * 60) / Math.max(1, rawConfig.sequenceCount))),
       resolution: rawConfig.resolution ?? "4K UHD",
@@ -180,6 +183,7 @@ export class ProjectStore {
     const projectId = `${slugify(input.title)}-${randomUUID().slice(0, 8)}`;
     const project: MovieProject = {
       ...config,
+      controlMode: config.controlMode ?? "manual",
       schemaVersion: CURRENT_PROJECT_SCHEMA_VERSION,
       id: projectId,
       status: "draft",
@@ -189,8 +193,9 @@ export class ProjectStore {
         {
           id: randomUUID(),
           role: "agent",
-          content:
-            "Project created. Tell me what to make, choose Full production or Phase by phase, then start the production run.",
+          content: config.controlMode === "automatic"
+            ? "Automatic Movie project created. Studio Brain will build the production and pause only at the protected Main Character checkpoint or when an important problem needs your review."
+            : "Project created. Tell me what to make, choose Full production or Phase by phase, then start the production run.",
           createdAt: now,
         },
       ],
@@ -205,6 +210,8 @@ export class ProjectStore {
         blockingIssues: [],
       },
       production: createProductionWorkflow(config),
+      automaticProduction: createAutomaticProductionState(config.controlMode === "automatic", config.mainCharacterPreference),
+      manualProduction: createManualProductionState(config.controlMode === "manual", preferredPlatform),
       createdAt: now,
       updatedAt: now,
     };
