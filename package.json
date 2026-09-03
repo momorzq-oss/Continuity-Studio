@@ -43,7 +43,7 @@
     "setup": "node scripts/install-cli.mjs"
   },
   "dependencies": {
-    "@openai/codex": "0.144.4",
+    "@openai/codex": "0.151.0",
     "archiver": "8.0.0",
     "express": "5.2.1",
     "jpeg-js": "^0.4.4",
